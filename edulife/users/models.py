@@ -12,7 +12,6 @@ class CustomUser(AbstractUser):
         ADMIN = 'admin', 'Admin'
 
     # Overriding existing tables
-
     first_name = models.CharField(
         _('first name'),
         max_length=150, 
@@ -49,7 +48,7 @@ class CustomUser(AbstractUser):
         max_length=2000,)
         
     profile_image = models.ImageField(
-        upload_to='profile_pics/',
+        upload_to='profile_pics/%Y/%m/%d/',
         blank = True,
         null=True,
         validators=[FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png'])]

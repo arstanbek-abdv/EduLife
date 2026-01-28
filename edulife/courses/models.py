@@ -13,14 +13,14 @@ class Course (models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     cover_image = models.ImageField(
-        upload_to='cover_images/',
+        upload_to='cover_images/%Y/%m/%d/',
         blank = True,
         null = True,
         validators=[FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png'])]
     )
-
-    teacher = models.ForeignKey(
-        CustomUser,
+# Each course is tied to one teacher. A teacher can have multiple courses
+    teacher = models.ForeignKey( 
+        CustomUser, 
         limit_choices_to={'role':CustomUser.Role.TEACHER},
         on_delete=models.SET_NULL,
         related_name='taught_courses',
@@ -28,6 +28,8 @@ class Course (models.Model):
         blank=True,  # Course can exist without teacher (temporarily/permanently)
         )
 
+    def __str__(self):
+        return f'{self.title}'
 
 
 # STORES ALL ENROLLMENTS 
@@ -43,7 +45,7 @@ class Enrollment (models.Model):
 
     student = models.ForeignKey(
         CustomUser,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         limit_choices_to={'role': CustomUser.Role.STUDENT},
         related_name='enrollments',
         null = False,
@@ -52,7 +54,7 @@ class Enrollment (models.Model):
 
     course = models.ForeignKey(
         Course,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name='enrollments',
         null = False,
         blank = False,
@@ -66,13 +68,16 @@ class Enrollment (models.Model):
         )
         ]
 
+    def __str__(self):
+        return f'Enrollments'
+
 
 # STORES ALL MODULES!
 class Module (models.Model):
 
     course = models.ForeignKey(
         Course,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name='module_to_course'
     )
 
@@ -91,16 +96,152 @@ class Module (models.Model):
 
         unique_together = [['course', 'order']]
 
+    def __str__(self):
+        return f'Modules'
+
 
 # STORES ALL LESSONS!
 class Lesson (models.Model):
 
+    title = models.CharField(max_length=200,default='Lesson #1')
+
     module = models.ForeignKey(
         Module,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name='lesson_to_module',
     )
-    minutes = models.IntegerField(default=15)
+
+    description = models.TextField(default='Contains learning objectives, duration, tasks, prerequisites')
+    duration_minutes = models.IntegerField(default=15)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    def __str__(self):
+        return f'Lessons'
 
+
+# STORES ALL TASKS!
+class Task (models.Model):
+    
+    class TaskType (models.TextChoices):
+        DOCUMENT = 'document', 'Document'
+        VIDEO = 'video', 'Video'
+        LINK = 'link', 'Link'
+
+    title = models.CharField(max_length=200)
+    description = models.TextField()
+    lesson = models.ForeignKey(Lesson,on_delete=models.PROTECT, related_name='task')
+    is_graded = models.BooleanField(default=False)
+    weight = models.PositiveIntegerField(default=1)
+    passing_score = models.PositiveIntegerField(default=70)
+    task_type = models.CharField(max_length=20, choices=TaskType.choices, default=TaskType.VIDEO)
+
+    file_content = models.FileField(
+        upload_to='file_content/%Y/%m/%d/',
+        blank = True,
+        null = True,
+        validators=[FileExtensionValidator(allowed_extensions=['pdf', 'docx', 'doc', 'pptx', 'ppt', 
+        'xlsx', 'xls', 'zip', 'txt', 'rtf','png','jpg','jpeg'])]
+        )
+
+    external_url = models.URLField(
+        max_length=500,
+        blank=True,
+        null=True,
+        help_text="YouTube/Vimeo link or external resource URL"
+    )
+
+    def __str__(self):
+        return f'Tasks'
+
+
+
+
+# STORES SUBMISSION HISTORY! EACH ATTEMPT IS GRADED!
+class Submission (models.Model):
+
+    student = models.ForeignKey(
+    CustomUser, 
+    limit_choices_to={'role': CustomUser.Role.STUDENT},
+    on_delete=models.PROTECT, related_name='submissions')
+
+    task = models.ForeignKey(Task,
+    on_delete=models.PROTECT, 
+    related_name='submissions')
+
+    grade = models.PositiveIntegerField(null=True,blank=True)
+    teacher_comment = models.TextField(null=True,blank=True)
+
+    file = models.FileField(
+        upload_to='submissions/%Y/%m/%d/',
+        blank=True,
+        null=True,
+        validators=[FileExtensionValidator(allowed_extensions=['pdf', 'docx', 'doc', 'pptx', 'ppt', 
+        'xlsx', 'xls','zip', 'txt', 'rtf','png','jpg','jpeg'])]
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True) 
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['student', 'task'],
+                name='unique_submission_per_student_task'
+            )
+        ]
+    
+    def __str__(self):
+        return f'Submissions'
+
+
+# TRACKS PROGRESS! INDEPENDENT FROM GRADING! 
+class TaskCompletion (models.Model):
+
+    student = models.ForeignKey(
+        CustomUser,
+        on_delete=models.PROTECT,
+        limit_choices_to={'role':CustomUser.Role.STUDENT}
+    )
+
+    task = models.ForeignKey(
+        Task,
+        on_delete=models.PROTECT
+    )
+
+    completed = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['student', 'task'],
+                name='unique_completion_per_student_task'
+            )
+        ]
+
+
+# STORES THE FINAL GRADE FOR EACH TASK! NECESSARY FOR COURSE GRADE COMPUTATION!
+class GradeBook (models.Model):
+
+    student = models.ForeignKey(
+        CustomUser,
+        limit_choices_to={'role':CustomUser.Role.STUDENT},
+        on_delete=models.PROTECT
+    )
+
+    task = models.ForeignKey(
+        Task,
+        on_delete=models.PROTECT
+    )
+
+    final_grade = models.PositiveIntegerField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['student', 'task'],
+                name='unique_final_grade_per_student_task'
+            )
+        ]
+
+    
