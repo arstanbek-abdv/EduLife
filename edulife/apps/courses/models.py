@@ -37,7 +37,7 @@ class Course (models.Model):
     language = models.CharField(max_length=100)
 
     cover_image = models.ImageField(
-        upload_to='cover_images/%Y/%m/%d/',
+        upload_to='cover_images/',
         blank = True,
         null = True,
         validators=[FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png'])]
@@ -145,7 +145,7 @@ class Lesson (models.Model):
     )
 
     description = models.TextField(default='Contains learning objectives, duration, tasks, prerequisites')
-    duration_minutes = models.IntegerField(default=15)
+    duration_minutes = models.PositiveIntegerField(default=15)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -169,7 +169,7 @@ class Task (models.Model):
     task_type = models.CharField(max_length=20, choices=TaskType.choices, default=TaskType.VIDEO)
 
     file_content = models.FileField(
-        upload_to='file_content/%Y/%m/%d/',
+        upload_to='file_content/',
         blank = True,
         null = True,
         validators=[FileExtensionValidator(allowed_extensions=['pdf', 'docx', 'doc', 'pptx', 'ppt', 
@@ -289,7 +289,9 @@ class Review (models.Model):
 
     rating = models.PositiveSmallIntegerField(
         validators=[MinValueValidator(1), 
-        MaxValueValidator(10)]
+        MaxValueValidator(5)],
+        blank=False,
+        null=False
     )
     feedback = models.TextField(blank=True, default='')
 
