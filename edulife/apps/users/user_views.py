@@ -1,9 +1,11 @@
 from rest_framework.viewsets import ModelViewSet
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.generics import CreateAPIView
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from apps.users.serializers.users_serializers import EditProfileSerializer,LookProfileSerializer
+from apps.users.serializers.users_serializers import RegisterUserSerializer
 from apps.users.models import CustomUser
 
-class EditUserProfileView (ModelViewSet):
+class EditUserProfileAPIView (ModelViewSet):
     queryset = CustomUser.objects.all()
     serializer_class = EditProfileSerializer
     permission_classes = [IsAuthenticated]
@@ -12,7 +14,7 @@ class EditUserProfileView (ModelViewSet):
     def get_object(self):
         return self.request.user
 
-class LookUserProfileView (ModelViewSet):
+class LookUserProfileAPIView (ModelViewSet):
     queryset = CustomUser.objects.all()
     serializer_class = LookProfileSerializer
     permission_classes = [IsAuthenticated]
@@ -20,3 +22,7 @@ class LookUserProfileView (ModelViewSet):
 
     def get_object(self):
         return self.request.user
+
+class RegisterUserAPIView (CreateAPIView): # TODO add password validation identical in password recovery!
+    permission_classes = [AllowAny]
+    serializer_class = RegisterUserSerializer
