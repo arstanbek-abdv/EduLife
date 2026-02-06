@@ -164,8 +164,8 @@ class Task (models.Model):
     description = models.TextField()
     lesson = models.ForeignKey(Lesson,on_delete=models.PROTECT, related_name='task')
     is_graded = models.BooleanField(default=False)
-    weight = models.PositiveIntegerField(default=1)
-    passing_score = models.PositiveIntegerField(default=70)
+    weight = models.PositiveIntegerField(default=1,blank=True,null=True)
+    passing_score = models.PositiveIntegerField(default=70,blank=True,null=True)
     task_type = models.CharField(max_length=20, choices=TaskType.choices, default=TaskType.VIDEO)
 
     file_content = models.FileField(
@@ -180,7 +180,7 @@ class Task (models.Model):
         max_length=500,
         blank=True,
         null=True,
-        help_text="YouTube/Vimeo link or external resource URL"
+        help_text="Link to YouTube video or external resource URL"
     )
 
     def __str__(self):
@@ -205,7 +205,7 @@ class Submission (models.Model):
     teacher_comment = models.TextField(null=True,blank=True)
 
     file = models.FileField(
-        upload_to='submissions/%Y/%m/%d/',
+        upload_to='submissions/',
         blank=True,
         null=True,
         validators=[FileExtensionValidator(allowed_extensions=['pdf', 'docx', 'doc', 'pptx', 'ppt', 

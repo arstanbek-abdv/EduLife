@@ -23,6 +23,10 @@ class LookUserProfileAPIView (ModelViewSet):
     def get_object(self):
         return self.request.user
 
-class RegisterUserAPIView (CreateAPIView): # TODO add password validation identical in password recovery!
+class RegisterUserAPIView (CreateAPIView): 
     permission_classes = [AllowAny]
     serializer_class = RegisterUserSerializer
+
+
+
+

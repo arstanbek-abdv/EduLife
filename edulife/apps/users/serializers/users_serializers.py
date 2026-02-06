@@ -1,3 +1,4 @@
+from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 from apps.courses.models import CustomUser
 
@@ -24,10 +25,17 @@ class RegisterUserSerializer (serializers.ModelSerializer):
             'first_name', 'last_name', 
             'username','email', 'password'
         ]
+
         extra_kwargs = {
             'password': {'write_only': True} # This hides it from the JSON response
         }
+# validate_password() must be overriden 
+# DRF only runs validators that are wired into the serializer validation pipeline.
 
+    def validate_password (self, value):
+        validate_password(value, self.instance)
+        return value 
+    
     def create (self, validated_data):
         password = validated_data.pop('password') #removes password from automatic validated_data variable to password variable
         user = CustomUser(**validated_data) # creates a new row fills remaining fields
