@@ -153,3 +153,7 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'abdyldaevarstanbek79@gmail.com'
 EMAIL_HOST_PASSWORD = 'nnau ypfd ilvk hoxi'
 PASSWORD_RESET_TOKEN_EXPIRY_SECONDS = 1800
+
+
+# Passing Score
+PASSING_SCORE = 70

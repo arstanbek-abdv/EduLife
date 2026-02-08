@@ -21,7 +21,7 @@ class Category(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return self.name
+        return 'Categories'
     
 
 # STORES ALL COURSES!
@@ -133,25 +133,6 @@ class Module (models.Model):
         return f'Modules'
 
 
-# STORES ALL LESSONS!
-class Lesson (models.Model):
-
-    title = models.CharField(max_length=200,default='Lesson #1')
-
-    module = models.ForeignKey(
-        Module,
-        on_delete=models.CASCADE,
-        related_name='lesson_to_module',
-    )
-
-    description = models.TextField(default='Contains learning objectives, duration, tasks, prerequisites')
-    duration_minutes = models.PositiveIntegerField(default=15)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f'Lessons'
-
-
 # STORES ALL TASKS!
 class Task (models.Model):
     
@@ -162,10 +143,14 @@ class Task (models.Model):
 
     title = models.CharField(max_length=200)
     description = models.TextField()
-    lesson = models.ForeignKey(Lesson,on_delete=models.PROTECT, related_name='task')
+    module = models.ForeignKey(Module,on_delete=models.PROTECT, related_name='task')
     is_graded = models.BooleanField(default=False)
     weight = models.PositiveIntegerField(default=1,blank=True,null=True)
-    passing_score = models.PositiveIntegerField(default=70,blank=True,null=True)
+
+    max_attempts = models.PositiveSmallIntegerField(
+        choices=[(1, "1 attempt"), (3, "3 attempts")],
+        default=1, null=True, blank=False)
+    
     task_type = models.CharField(max_length=20, choices=TaskType.choices, default=TaskType.VIDEO)
 
     file_content = models.FileField(
@@ -173,27 +158,22 @@ class Task (models.Model):
         blank = True,
         null = True,
         validators=[FileExtensionValidator(allowed_extensions=['pdf', 'docx', 'doc', 'pptx', 'ppt', 
-        'xlsx', 'xls', 'zip', 'txt', 'rtf','png','jpg','jpeg'])]
-        )
+        'xlsx', 'xls', 'zip', 'txt', 'rtf','png','jpg','jpeg'])])
 
     external_url = models.URLField(
         max_length=500,
         blank=True,
         null=True,
-        help_text="Link to YouTube video or external resource URL"
-    )
+        help_text="Link to YouTube video or external resource URL")
 
     def __str__(self):
         return f'Tasks'
 
 
-
-
 # STORES SUBMISSION HISTORY! EACH ATTEMPT IS GRADED!
 class Submission (models.Model):
 
-    student = models.ForeignKey(
-    CustomUser, 
+    student = models.ForeignKey(CustomUser, 
     limit_choices_to={'role': CustomUser.Role.STUDENT},
     on_delete=models.PROTECT, related_name='submissions')
 
@@ -209,12 +189,13 @@ class Submission (models.Model):
         blank=True,
         null=True,
         validators=[FileExtensionValidator(allowed_extensions=['pdf', 'docx', 'doc', 'pptx', 'ppt', 
-        'xlsx', 'xls','zip', 'txt', 'rtf','png','jpg','jpeg'])]
-    )
+        'xlsx', 'xls','zip', 'txt', 'rtf','png','jpg','jpeg'])])
+    student_comment = models.CharField(max_length=255, blank=True, null=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True) 
 
-    class Meta:
+    class Meta: #TODO Is this constraint needed in the first place?
         constraints = [
             models.UniqueConstraint(
                 fields=['student', 'task'],
