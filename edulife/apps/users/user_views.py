@@ -9,7 +9,7 @@ class EditUserProfileAPIView (ModelViewSet):
     queryset = CustomUser.objects.all()
     serializer_class = EditProfileSerializer
     permission_classes = [IsAuthenticated]
-    http_method_names = ['get', 'patch']
+    http_method_names = ["put", 'patch']
     
     def get_object(self):
         return self.request.user

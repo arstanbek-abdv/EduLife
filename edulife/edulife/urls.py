@@ -26,5 +26,5 @@ urlpatterns = [
     path('api/token/verify/', jwt_views.TokenVerifyView.as_view(), name='token_verify'),
     path('api/logout', jwt_views.TokenBlacklistView.as_view(), name='logout'),
     path('users/api/', include('apps.users.urls')), # users/urls
-
+    path('courses/api/',include('apps.courses.urls')),
 ]
