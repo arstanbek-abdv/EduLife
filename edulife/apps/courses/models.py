@@ -3,7 +3,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils.text import slugify
 from apps.users.models import CustomUser
 from django.db import models
-
+from django.utils import timezone
 # STORES ALL CATEGORIES!
 class Category(models.Model):
     name = models.CharField(max_length=200)
@@ -37,11 +37,13 @@ class Course (models.Model):
     language = models.CharField(max_length=20)
 
     cover_image = models.ImageField(
-        upload_to='cover_images/',
+        upload_to='',
         blank = True,
         null = True,
-        validators=[FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png'])]
     )
+    file_key = models.CharField(max_length=512, blank=True, null=True) # permanent MinIO path
+    file_mime_type = models.CharField(max_length=100, blank=True, null=True)
+    file_size = models.BigIntegerField(null=True, blank=True) # size in bytes 
 # Each course is tied to one teacher. A teacher can have multiple courses
     teacher = models.ForeignKey( 
         CustomUser, 
@@ -99,28 +101,32 @@ class Task (models.Model):
     class TaskType (models.TextChoices):
         DOCUMENT = 'document', 'Document'
         VIDEO = 'video', 'Video'
-        LINK = 'link', 'Link'
 
     title = models.CharField(max_length=200)
     description = models.TextField()
     module = models.ForeignKey(Module,on_delete=models.PROTECT, related_name='task')
     task_type = models.CharField(max_length=20, choices=TaskType.choices, default=TaskType.VIDEO)
     file_content = models.FileField(
-        upload_to='file_content/',
+        upload_to='',
         blank = True,
         null = True,
-        validators=[FileExtensionValidator(allowed_extensions=['pdf', 'docx', 'doc', 'pptx', 'ppt', 
-        'xlsx', 'xls', 'zip', 'txt', 'rtf','png','jpg','jpeg'])]
     )
+    file_key = models.CharField(max_length=512, blank=True, null=True) # permanent MinIO path
+    file_mime_type = models.CharField(max_length=100, blank=True, null=True)
+    file_size = models.BigIntegerField(null=True, blank=True) # size in bytes 
+    original_file_name = models.CharField(max_length=255, blank=True, null=True)
+    
     external_url = models.URLField(
         max_length=500,
         blank=True,
         null=True,
-        help_text="Link to YouTube video or external resource URL"
+        help_text="External resource URL"
     )
 
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     def __str__(self):
-        return f'Task {self.title} in {self.module}'
+        return f'id:{self.id} Task {self.title} in {self.module}'
 
 
 # TRACKS PROGRESS! 

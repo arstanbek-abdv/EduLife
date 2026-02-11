@@ -7,9 +7,9 @@ class TaskSerializer (ModelSerializer):
     class Meta:
         model = Task
         fields = ['title', 
-                  'description', 
-                  'task_type', 
-                'file_content',
+                  'id',
+                'description', 
+                'task_type', 
                 'external_url'
                 ]
 
@@ -18,6 +18,7 @@ class ModuleSerializer (ModelSerializer):
     class Meta:
         model = Module 
         fields = ['title',
+                  'id',
                   'description',
                   'order',
                   'tasks' # virtual FK
@@ -28,6 +29,7 @@ class CourseSerializer (ModelSerializer):
     class Meta:
         model = Course
         fields = ['title',
+                  'id',
                 'description',
                 'short_description', 
                 'language',
@@ -48,7 +50,7 @@ class CourseSerializer (ModelSerializer):
         with transaction.atomic():
             # Create Course row
             course = Course.objects.create(teacher=teacher, **validated_data)
-
+            
             # Iterate over modules
             for module_data in modules_data:
                 if 'task' not in module_data:

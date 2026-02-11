@@ -12,7 +12,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
-
+from minio import Minio 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     # Installed apps
     'rest_framework', 
+    'storages',
     # My apps
     'apps.users',
     'apps.courses',
@@ -105,6 +106,14 @@ SIMPLE_JWT = {
     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
 }
 
+STORAGES = {
+    "default": {
+        "BACKEND": "edulife.storage.MinioStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
@@ -154,7 +163,3 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'abdyldaevarstanbek79@gmail.com'
 EMAIL_HOST_PASSWORD = 'nnau ypfd ilvk hoxi'
 PASSWORD_RESET_TOKEN_EXPIRY_SECONDS = 1800
-
-
-# Passing Score
-PASSING_SCORE = 70

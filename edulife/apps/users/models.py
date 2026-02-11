@@ -43,11 +43,14 @@ class CustomUser(AbstractUser):
         max_length=2000
     )
     profile_image = models.ImageField(
-        upload_to='profile_pics/',
+        upload_to='',
         blank=True,
         null=True,
-        validators=[FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png'])]
     )
+    file_key = models.CharField(max_length=512, blank=True, null=True) # permanent MinIO path
+    file_mime_type = models.CharField(max_length=100, blank=True, null=True)
+    file_size = models.BigIntegerField(null=True, blank=True) # size in bytes 
+    
     password_reset_token = models.CharField(
         max_length=100,
         unique=True,
