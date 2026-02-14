@@ -1,69 +1,128 @@
-from django.db import transaction 
+from django.db import transaction
 from rest_framework.serializers import ModelSerializer
 from rest_framework import serializers
-from apps.courses.models import Course, Module, Task
 
-class TaskSerializer (ModelSerializer):
+from apps.courses.models import Course, Module, Task, Enrollment
+
+
+class EnrollmentSerializer(ModelSerializer):
+    class Meta:
+        model = Enrollment
+        fields = ["id", "course", "status", "created_at"]
+        read_only_fields = ["status", "created_at"]
+
+
+class TaskOutlineSerializer(ModelSerializer):
+    """Minimal task fields for unenrolled students (outline view)."""
+
     class Meta:
         model = Task
-        fields = ['title', 
-                  'id',
-                'description', 
-                'task_type', 
-                'external_url'
-                ]
+        fields = ["id", "title", "task_type"]
+        read_only_fields = ["id", "title", "task_type"]
 
-class ModuleSerializer (ModelSerializer):
-    tasks = TaskSerializer(many=True, source='task', required=True)
+
+class TaskSerializer(ModelSerializer):
+
     class Meta:
-        model = Module 
-        fields = ['title',
-                  'id',
-                  'description',
-                  'order',
-                  'tasks' # virtual FK
-                  ]
+        model = Task
+        fields = [
+            "id",
+            "module",
+            "title",
+            "description",
+            "task_type",
+            "external_url",
+        ]
+        read_only_fields = ["module"]
 
-class CourseSerializer (ModelSerializer):
-    module_to_course = ModuleSerializer(many=True, required=True)
+class ModuleOutlineSerializer(ModelSerializer):
+    tasks = TaskOutlineSerializer(many=True, source="task", read_only=True)
+
+    class Meta:
+        model = Module
+        fields = ["id", "title", "description", "order", "tasks"]
+        read_only_fields = ["id", "title", "description", "order", "tasks"]
+
+
+class ModuleSerializer(ModelSerializer):
+
+    class Meta:
+        model = Module
+        fields = ["id","course","title", "description", "order"]
+        read_only_fields = ["course"]
+
+class CourseOutlineSerializer(ModelSerializer):
+    """Course with modules and task outline only (id, title, task_type). For unenrolled students."""
+
+    modules = ModuleOutlineSerializer(many=True, read_only=True)
+    
     class Meta:
         model = Course
-        fields = ['title',
-                  'id',
-                'description',
-                'short_description', 
-                'language',
-                'cover_image',
-                'category',
-                'module_to_course' # virtual FK
-                ]
-        
-    def create (self, validated_data):
-        # Require modules to be provided; treat course creation as an atomic unit
-        if 'module_to_course' not in validated_data:
-            raise serializers.ValidationError({'module_to_course': 'Course must include at least one module.'})
+        fields = [
+            "id",
+            "title",
+            "status",
+            "description",
+            "short_description",
+            "language",
+            "category",
+            "modules",
+        ]
+        read_only_fields = [
+            "id",
+            "title",
+            "status",
+            "description",
+            "short_description",
+            "language",
+            "category",
+            "modules",
+        ]
 
-        modules_data = validated_data.pop('module_to_course')
-        # Inject teacher from request context
-        teacher = self.context['request'].user
 
-        with transaction.atomic():
-            # Create Course row
-            course = Course.objects.create(teacher=teacher, **validated_data)
-            
-            # Iterate over modules
-            for module_data in modules_data:
-                if 'task' not in module_data:
-                    raise serializers.ValidationError({'task': 'Each module must include at least one task.'})
+class CourseSerializer(ModelSerializer):
+    modules = ModuleSerializer(many=True, read_only=True)
+    enrolled_count = serializers.SerializerMethodField()
 
-                tasks_data = module_data.pop('task')
+    def get_enrolled_count(self, obj):
+        return getattr(obj, "enrolled_count", None)
 
-                # Create Module row linked to Course
-                module = Module.objects.create(course=course, **module_data)
+    class Meta:
+        model = Course
+        fields = [
+            "id",
+            "title",
+            "status",
+            "description",
+            "short_description",
+            "language",
+            "category",
+            "modules",
+            "enrolled_count",
+        ]
+        read_only_fields = [
+            "id",
+            "title",
+            "status",
+            "description",
+            "short_description",
+            "language",
+            "category",
+            "modules",
+            "enrolled_count"
+            ]
 
-                # Iterate over tasks
-                for task_data in tasks_data:
-                    # Create Task row linked to Module
-                    Task.objects.create(module=module, **task_data)
 
-        return course
+class CreateCourseSerializer(ModelSerializer):
+
+    class Meta:
+        model = Course 
+        fields = [
+            "id",
+            "title",
+            "status",
+            "description",
+            "short_description",
+            "language",
+            "category",
+        ]

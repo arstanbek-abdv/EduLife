@@ -31,7 +31,7 @@ class Course (models.Model):
         PUBLISHED = 'published', 'Published'
         DRAFT = 'draft', 'Draft'
 
-    title = models.CharField(max_length=200)
+    title = models.CharField(max_length=200,unique=True)
     description = models.TextField()
     short_description = models.TextField()
     language = models.CharField(max_length=20)
@@ -41,38 +41,37 @@ class Course (models.Model):
         blank = True,
         null = True,
     )
+    original_file_name = models.CharField(max_length=255, blank=True, null=True)
     file_key = models.CharField(max_length=512, blank=True, null=True) # permanent MinIO path
     file_mime_type = models.CharField(max_length=100, blank=True, null=True)
-    file_size = models.BigIntegerField(null=True, blank=True) # size in bytes 
-# Each course is tied to one teacher. A teacher can have multiple courses
     teacher = models.ForeignKey( 
         CustomUser, 
         limit_choices_to={'role':CustomUser.Role.TEACHER},
         on_delete=models.SET_NULL,
         related_name='taught_courses',
         null=True,
-        blank=True,  # Course can exist without teacher (temporarily/permanently)
+        blank=False
     )
     category = models.ForeignKey(
         Category,
         on_delete=models.SET_NULL,
         null=True,blank=True,
-        related_name='courses'
+        related_name='categories'
     )
     
     status = models.CharField(max_length=20,default=CourseStatus.DRAFT)
     creation_time = models.DateTimeField(auto_now_add=True)
     updated_time = models.DateTimeField(auto_now=True)
-
+    published_at = models.DateTimeField(null=True, blank=True)
     def __str__(self):
-        return f'{self.title}'
+        return f'id:{self.id} {self.title}'
 
 # STORES ALL MODULES!
 class Module (models.Model):
 
     course = models.ForeignKey(
         Course,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name='module_to_course'
     )
 
@@ -223,4 +222,4 @@ class Enrollment (models.Model):
         ]
 
     def __str__(self):
-        return str(self.student, self.course)
+        return f'{str(self.student)} in {str(self.course.title)}'

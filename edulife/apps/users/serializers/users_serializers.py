@@ -1,45 +1,76 @@
+from datetime import timedelta
+
+from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
-from apps.courses.models import CustomUser
+from minio import Minio
 
-class EditProfileSerializer (serializers.ModelSerializer):
+from apps.users.models import CustomUser
+
+class EditProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
         fields = [
             'first_name', 'last_name', 'username',
-            'email', 'bio', 'profile_image'
+            'email', 'bio'
         ]
 
+
 class LookProfileSerializer(serializers.ModelSerializer):
+    profile_picture_url = serializers.SerializerMethodField()
+
+    def get_profile_picture_url(self, obj):
+        """
+        Return a temporary MinIO URL for the user's profile image, if it exists.
+        """
+        if not obj.file_key:
+            return None
+
+        client = Minio(
+            settings.MINIO_ENDPOINT,
+            access_key=settings.MINIO_ACCESS_KEY,
+            secret_key=settings.MINIO_SECRET_KEY,
+            secure=settings.MINIO_USE_SSL,
+        )
+        try:
+            url = client.presigned_get_object(
+                bucket_name=settings.MINIO_BUCKET_NAME,
+                object_name=obj.file_key,
+                expires=timedelta(hours=24),
+            )
+        except Exception:
+            # If MinIO is unavailable or key is invalid, just hide the URL.
+            return None
+        return url
+
     class Meta:
         model = CustomUser
         fields = [
             'first_name', 'last_name', 'role',
-            'email', 'bio', 'profile_image'
+            'email', 'bio', 'profile_picture_url'
         ]
-
-class RegisterUserSerializer (serializers.ModelSerializer):
+  
+class RegisterUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
         fields = [
-            'first_name', 'last_name', 
-            'username','email', 'password'
+            'first_name', 'last_name',
+            'username', 'email', 'password'
         ]
 
         extra_kwargs = {
-            'password': {'write_only': True} # This hides it from the JSON response
+            'password': {'write_only': True}  # This hides it from the JSON response
         }
-# validate_password() must be overriden 
-# DRF only runs validators that are wired into the serializer validation pipeline.
+    # validate_password() must be overridden
+    # DRF only runs validators that are wired into the serializer validation pipeline.
 
-    def validate_password (self, value):
+    def validate_password(self, value):
         validate_password(value, self.instance)
-        return value 
+        return value
     
-    def create (self, validated_data):
-        password = validated_data.pop('password') #removes password from automatic validated_data variable to password variable
-        user = CustomUser(**validated_data) # creates a new row fills remaining fields
-        user.set_password(password) # hashes password and puts hash to password field 
+    def create(self, validated_data):
+        password = validated_data.pop('password')  # removes password from validated_data
+        user = CustomUser(**validated_data)  # creates a new row fills remaining fields
+        user.set_password(password)  # hashes password and puts hash to password field
         user.save()
-        return user 
-    
+        return user

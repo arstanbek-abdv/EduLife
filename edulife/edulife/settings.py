@@ -12,7 +12,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
-from minio import Minio 
+import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -98,8 +98,8 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=799),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
@@ -114,6 +114,17 @@ STORAGES = {
         "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
     },
 }
+
+MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "localhost:9000")
+MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
+MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin123")
+MINIO_USE_SSL = os.getenv("MINIO_USE_SSL", "false").lower() == "true"
+MINIO_BUCKET_NAME = os.getenv("MINIO_BUCKET_NAME", "edulife")
+MINIO_REGION_NAME = os.getenv("MINIO_REGION_NAME", "us-east-1")
+MINIO_ENDPOINT_URL = os.getenv(
+    "MINIO_ENDPOINT_URL",
+    f"http{'s' if MINIO_USE_SSL else ''}://{MINIO_ENDPOINT}",
+)
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators

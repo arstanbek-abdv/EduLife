@@ -1,11 +1,12 @@
+from django.conf import settings
 from storages.backends.s3boto3 import S3Boto3Storage
 
 class MinioStorage(S3Boto3Storage):
-    bucket_name = "edulife"
-    endpoint_url = "http://localhost:9000"
-    access_key = "minioadmin"
-    secret_key = "minioadmin123"
-    region_name = "us-east-1"
+    bucket_name = settings.MINIO_BUCKET_NAME
+    endpoint_url = settings.MINIO_ENDPOINT_URL
+    access_key = settings.MINIO_ACCESS_KEY
+    secret_key = settings.MINIO_SECRET_KEY
+    region_name = settings.MINIO_REGION_NAME
     default_acl = None
     file_overwrite = False
     querystring_auth = True

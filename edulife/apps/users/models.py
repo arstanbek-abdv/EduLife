@@ -50,6 +50,7 @@ class CustomUser(AbstractUser):
     file_key = models.CharField(max_length=512, blank=True, null=True) # permanent MinIO path
     file_mime_type = models.CharField(max_length=100, blank=True, null=True)
     file_size = models.BigIntegerField(null=True, blank=True) # size in bytes 
+    original_file_name = models.CharField(max_length=255, blank=True, null=True)
     
     password_reset_token = models.CharField(
         max_length=100,
