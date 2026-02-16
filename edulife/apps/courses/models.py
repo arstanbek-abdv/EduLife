@@ -48,7 +48,7 @@ class Course (models.Model):
         CustomUser, 
         limit_choices_to={'role':CustomUser.Role.TEACHER},
         on_delete=models.SET_NULL,
-        related_name='taught_courses',
+        related_name='teachers',
         null=True,
         blank=False
     )
@@ -71,8 +71,8 @@ class Module (models.Model):
 
     course = models.ForeignKey(
         Course,
-        on_delete=models.CASCADE,
-        related_name='module_to_course'
+        on_delete=models.PROTECT,
+        related_name='modules'
     )
 
     title = models.CharField(max_length=255)
@@ -103,7 +103,7 @@ class Task (models.Model):
 
     title = models.CharField(max_length=200)
     description = models.TextField()
-    module = models.ForeignKey(Module,on_delete=models.PROTECT, related_name='task')
+    module = models.ForeignKey(Module,on_delete=models.PROTECT, related_name='tasks')
     task_type = models.CharField(max_length=20, choices=TaskType.choices, default=TaskType.VIDEO)
     file_content = models.FileField(
         upload_to='',
@@ -114,7 +114,6 @@ class Task (models.Model):
     file_mime_type = models.CharField(max_length=100, blank=True, null=True)
     file_size = models.BigIntegerField(null=True, blank=True) # size in bytes 
     original_file_name = models.CharField(max_length=255, blank=True, null=True)
-    
     external_url = models.URLField(
         max_length=500,
         blank=True,
@@ -139,6 +138,7 @@ class ProgressCount (models.Model):
         Task,
         on_delete=models.PROTECT
     )
+    is_done = models.BooleanField(default=False)
     status = models.BooleanField(default=False)
     completed_at = models.DateTimeField(auto_now_add=True)
     class Meta:

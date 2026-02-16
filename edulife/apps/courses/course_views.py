@@ -17,6 +17,7 @@ from rest_framework.status import (
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
+from rest_framework.exceptions import ValidationError
 from django.conf import settings
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
@@ -24,6 +25,7 @@ from django.utils import timezone
 from urllib.parse import urlparse
 
 from apps.users.models import CustomUser
+from apps.courses.models import Course, Module, Task
 from apps.courses.permissions.course_permissions import IsTeacher
 from apps.courses.serializers.course_serializers import (
     CourseSerializer,
@@ -131,7 +133,7 @@ class CourseAPIView(ReadOnlyModelViewSet):
 class CourseCatalog (ModelViewSet):
     queryset = Course.objects.all()
     permission_classes = [IsAuthenticatedOrReadOnly]
-    serializer_class = CourseSerializer
+    serializer_class = CourseOutlineSerializer
 
     def get_queryset(self):
         if self.request.user.is_anonymous or self.request.user.role == CustomUser.Role.STUDENT:
@@ -268,13 +270,31 @@ class TaskFileUpload(APIView):
 class PublishCourse(APIView):
     permission_classes = [IsAuthenticated, IsTeacher]
 
-    def course_teacher(self, request, course_id):
+    def get_course_and_validate(self, request, course_id):
         course = get_object_or_404(Course, id=course_id, teacher=request.user)
         self.check_object_permissions(request, course)
-        return course
-    
+        cant_publish = {}
+        if course.file_key is None:
+            cant_publish['cover']='Course cannot be published without a cover!'
+        # 1) Must have modules
+        if not Module.objects.filter(course_id=course_id).exists():
+            cant_publish['module'] = "Course cannot be published without modules!"
+        # 2) Must have tasks
+        tasks = Task.objects.filter(module__course_id=course_id)
+        if not tasks.exists():
+            cant_publish['tasks'] = "Course cannot be published without tasks!"
+
+        # 3) Every task must have file_key
+        if tasks.filter(file_key__isnull=True).exists():
+            cant_publish['file'] = "Each task must have a file!"
+        
+        if cant_publish:
+            raise ValidationError(cant_publish)
+        else:
+            return course
+        
     def post(self, request, course_id, *args, **kwargs):
-        course = self.course_teacher(request, course_id)
+        course = self.get_course_and_validate(request, course_id)
         if course.status == Course.CourseStatus.PUBLISHED:
             return Response(
                 {"detail": "Course is already published.", "status": course.status, "published_at": course.published_at},
@@ -284,14 +304,12 @@ class PublishCourse(APIView):
         course.published_at = timezone.now()
         course.save(update_fields=["status", "published_at"])
         return Response(
-            {"id": course.id, "status": course.status, "" "published_at": course.published_at},
+            {"id": course.id, "status": course.status, "published_at": course.published_at},
             status=HTTP_200_OK,
         )
-    
 
 
-
-class CourseEnrollmentAPIView(APIView):
+class EnrollToCourseAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, course_id, *args, **kwargs):
@@ -320,6 +338,16 @@ class CourseEnrollmentAPIView(APIView):
             enrollment.status = Enrollment.Status.ACTIVE
             enrollment.save(update_fields=["status"])
         return Response(EnrollmentSerializer(enrollment).data, status=HTTP_200_OK)
+    
+
+class UnenrollCourseAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    def put(self,request,course_id,*args,**kwargs):
+        enrollment = get_object_or_404(Enrollment,student=request.user, course=course_id)
+        enrollment.status = Enrollment.Status.DROPPED
+        enrollment.save()
+        serializer = EnrollmentSerializer(enrollment)
+        return Response(serializer.data, status=HTTP_200_OK)
 
 
 class TaskFileDownloadAPIView(APIView):
@@ -373,3 +401,4 @@ class TaskFileDownloadAPIView(APIView):
                 status=HTTP_502_BAD_GATEWAY,
             )
         return Response({"url": file_url}, status=HTTP_200_OK)
+

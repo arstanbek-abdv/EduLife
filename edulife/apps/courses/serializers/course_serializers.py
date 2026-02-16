@@ -36,7 +36,7 @@ class TaskSerializer(ModelSerializer):
         read_only_fields = ["module"]
 
 class ModuleOutlineSerializer(ModelSerializer):
-    tasks = TaskOutlineSerializer(many=True, source="task", read_only=True)
+    tasks = TaskOutlineSerializer(many=True, source="tasks", read_only=True)
 
     class Meta:
         model = Module

@@ -7,7 +7,8 @@ from apps.courses.course_views import (
     CourseCoverUpload,
     TaskFileUpload,
     PublishCourse,
-    CourseEnrollmentAPIView,
+    EnrollToCourseAPIView,
+    UnenrollCourseAPIView,
     TaskFileDownloadAPIView,
 )
 from apps.courses.course_creation import (
@@ -16,27 +17,27 @@ from apps.courses.course_creation import (
     CreateTaskAPIView 
     )
 
-router = DefaultRouter()
+#router = DefaultRouter()
 # This app is mounted at `/api/courses/` in the project urls,
 # so keep route prefixes here *relative* (avoid `/courses/courses/...`).
 
-router.register(r"", CourseAPIView, basename="all-courses")
-# Endpoint above is for creating a course structure
-# TODO make this endpoint only for viewing, separate endpoints for course,module and task creation is necessary!
-
+#router.register(r"", CourseAPIView, basename="all-courses")
 # As teacher for viewing owned courses and number of enrolled students in each course
 # As student for viewing all the published courses and their descriptions (no task files available)
+
 urlpatterns = [
+    path('all-courses/', CourseAPIView.as_view({'get': 'list'})),
     path('catalog/', CourseCatalog.as_view({'get': 'list'})),
-    path('catalog/<int:pk>/', CourseCatalog.as_view({'get': 'retrieve'})),
-    path('courses/', CreateCourseAPIView.as_view()),
-    path('courses/<int:course_id>/modules/', CreateModuleAPIView.as_view()),
+    path('catalog/<int:pk>/', CourseCatalog.as_view({'get':'retrieve'})),
+    path('new-course/', CreateCourseAPIView.as_view()),
+    path('new-course/<int:course_id>/modules/', CreateModuleAPIView.as_view()),
     path('modules/<int:module_id>/tasks/',CreateTaskAPIView.as_view()),
     path("tasks/<int:task_id>/upload/", TaskFileUpload.as_view()),
     path("tasks/<int:task_id>/file/", TaskFileDownloadAPIView.as_view()),
     path("<int:course_id>/cover/", CourseCoverUpload.as_view()),
     path("<int:course_id>/publish/", PublishCourse.as_view()),
-    path("<int:course_id>/enroll/", CourseEnrollmentAPIView.as_view()),
+    path("<int:course_id>/enroll/", EnrollToCourseAPIView.as_view()),
+    path('<int:course_id>/unenroll/', UnenrollCourseAPIView.as_view()),
 ]
 
-urlpatterns += router.urls
+#urlpatterns += router.urls
