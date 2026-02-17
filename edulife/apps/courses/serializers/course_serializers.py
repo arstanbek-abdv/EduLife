@@ -2,7 +2,7 @@ from django.db import transaction
 from rest_framework.serializers import ModelSerializer
 from rest_framework import serializers
 
-from apps.courses.models import Course, Module, Task, Enrollment
+from apps.courses.models import Course, Module, Task, Enrollment, CompletedTask
 
 
 class EnrollmentSerializer(ModelSerializer):
@@ -114,7 +114,6 @@ class CourseSerializer(ModelSerializer):
 
 
 class CreateCourseSerializer(ModelSerializer):
-
     class Meta:
         model = Course 
         fields = [
@@ -125,4 +124,13 @@ class CreateCourseSerializer(ModelSerializer):
             "short_description",
             "language",
             "category",
+        ]
+
+class CompletedTaskSerializer(ModelSerializer):
+    class Meta:
+        model = CompletedTask
+        fields = [
+            'student',
+            'task',
+            'completed_at'
         ]

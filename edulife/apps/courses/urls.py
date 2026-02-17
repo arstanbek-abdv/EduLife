@@ -2,19 +2,14 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from apps.courses.course_views import (
-    CourseCatalog,
-    CourseAPIView,
-    CourseCoverUpload,
-    TaskFileUpload,
-    PublishCourse,
-    EnrollToCourseAPIView,
-    UnenrollCourseAPIView,
-    TaskFileDownloadAPIView,
+    CourseCatalog, CourseAPIView,
+    EnrollToCourseAPIView, UnenrollCourseAPIView,
+    TaskFileDownloadAPIView, ProgressCountAPIView
 )
 from apps.courses.course_creation import (
-    CreateCourseAPIView,
-    CreateModuleAPIView,
-    CreateTaskAPIView 
+    CreateCourseAPIView, CreateModuleAPIView,
+    CreateTaskAPIView , TaskFileUpload,
+    CourseCoverUpload, PublishCourse
     )
 
 #router = DefaultRouter()
@@ -34,10 +29,9 @@ urlpatterns = [
     path('modules/<int:module_id>/tasks/',CreateTaskAPIView.as_view()),
     path("tasks/<int:task_id>/upload/", TaskFileUpload.as_view()),
     path("tasks/<int:task_id>/file/", TaskFileDownloadAPIView.as_view()),
+    path('tasks/<int:task_id>/progress/', ProgressCountAPIView.as_view()),
     path("<int:course_id>/cover/", CourseCoverUpload.as_view()),
     path("<int:course_id>/publish/", PublishCourse.as_view()),
     path("<int:course_id>/enroll/", EnrollToCourseAPIView.as_view()),
     path('<int:course_id>/unenroll/', UnenrollCourseAPIView.as_view()),
 ]
-
-#urlpatterns += router.urls

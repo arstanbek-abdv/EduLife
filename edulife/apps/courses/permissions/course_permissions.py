@@ -2,7 +2,7 @@ from rest_framework.permissions import BasePermission
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from apps.users.models import CustomUser
-from apps.courses.models import Course, Task
+from apps.courses.models import Course, Task, Enrollment 
 
 class IsTeacher (BasePermission):
     def has_permission(self, request, view):
@@ -22,3 +22,18 @@ class IsTeacher (BasePermission):
         # Fallback: try generic teacher_id attribute if present
         teacher_id = getattr(obj, "teacher_id", None)
         return teacher_id == request.user.id
+
+class IsEnrolled(BasePermission):
+    def has_permission(self, request, view):
+        task_id = view.kwargs['task_id']
+        student = request.user
+        try:
+            task = Task.objects.get(id=task_id)
+            course = task.module.course
+            enrollment = Enrollment.objects.get(student=student,course=course)
+            if enrollment.status == 'active' or enrollment.status == 'completed':
+                return True
+            else:
+                return False
+        except Enrollment.DoesNotExist:
+            return False

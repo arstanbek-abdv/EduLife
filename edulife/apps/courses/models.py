@@ -128,18 +128,18 @@ class Task (models.Model):
 
 
 # TRACKS PROGRESS! 
-class ProgressCount (models.Model):
+class CompletedTask (models.Model):
     student = models.ForeignKey(
         CustomUser,
         on_delete=models.PROTECT,
-        limit_choices_to={'role':CustomUser.Role.STUDENT}
+        limit_choices_to={'role':CustomUser.Role.STUDENT},
+        related_name='students'
     )
     task = models.ForeignKey(
         Task,
-        on_delete=models.PROTECT
+        on_delete=models.PROTECT,
+        related_name='tasks'
     )
-    is_done = models.BooleanField(default=False)
-    status = models.BooleanField(default=False)
     completed_at = models.DateTimeField(auto_now_add=True)
     class Meta:
         constraints = [
