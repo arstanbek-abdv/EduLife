@@ -2,7 +2,7 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from apps.courses.course_views import (
-    CourseCatalog, CourseAPIView,
+    CourseCatalog, HomeAPIView,
     EnrollToCourseAPIView, UnenrollCourseAPIView,
     TaskFileDownloadAPIView, ProgressCountAPIView
 )
@@ -21,7 +21,7 @@ from apps.courses.course_creation import (
 # As student for viewing all the published courses and their descriptions (no task files available)
 
 urlpatterns = [
-    path('all-courses/', CourseAPIView.as_view({'get': 'list'})),
+    path('all-courses/', HomeAPIView.as_view({'get': 'list'})),
     path('catalog/', CourseCatalog.as_view({'get': 'list'})),
     path('catalog/<int:pk>/', CourseCatalog.as_view({'get':'retrieve'})),
     path('new-course/', CreateCourseAPIView.as_view()),

@@ -27,10 +27,9 @@ from apps.users.models import CustomUser
 from apps.courses.models import Course, Task, Enrollment, CompletedTask
 from apps.courses.permissions.course_permissions import IsTeacher, IsEnrolled
 from apps.courses.serializers.course_serializers import (
-    CourseSerializer,
+    TeacherCourseSerializer,
     CourseOutlineSerializer,
-    EnrollmentSerializer,
-    CompletedTaskSerializer
+    EnrollmentSerializer
 )
 
 def get_minio_client():
@@ -72,10 +71,10 @@ def normalize_clickable_url(url: str) -> str:
         return f"{scheme}://{endpoint}{path}"
     return f"{scheme}://{path.lstrip('/')}"
 
-class CourseAPIView(ReadOnlyModelViewSet):
+class HomeAPIView(ReadOnlyModelViewSet):
     queryset = Course.objects.all()
     permission_classes = [IsAuthenticated]
-    serializer_class = CourseSerializer
+    serializer_class = CourseOutlineSerializer
 
     def get_permissions(self):
         if self.action in ("list", "retrieve"):
@@ -101,29 +100,18 @@ class CourseAPIView(ReadOnlyModelViewSet):
             )
         if user.role == CustomUser.Role.STUDENT:
             return Course.objects.filter(status=Course.CourseStatus.PUBLISHED)
-        
-    def _is_teacher_owner_or_enrolled(self, request, course):
-        if course.teacher_id == request.user.id:
-            return True
-        return Enrollment.objects.filter(
-            student=request.user,
-            course=course,
-            status__in=[Enrollment.Status.ACTIVE, Enrollment.Status.COMPLETED],
-        ).exists()
-
+   
     def get_serializer_class(self):
         if self.action == "list":
             if self.request.user.role == CustomUser.Role.TEACHER:
-                return CourseSerializer
+                return TeacherCourseSerializer
             return CourseOutlineSerializer
         return CourseOutlineSerializer  # default for retrieve; overridden below
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         if request.user.role == CustomUser.Role.TEACHER:
-            serializer = CourseSerializer(instance, context={"request": request})
-        elif self._is_teacher_owner_or_enrolled(request, instance):
-            serializer = CourseSerializer(instance, context={"request": request})
+            serializer = TeacherCourseSerializer(instance, context={"request": request})
         else:
             serializer = CourseOutlineSerializer(instance, context={"request": request})
         return Response(serializer.data)
@@ -234,9 +222,12 @@ class TaskFileDownloadAPIView(APIView):
 class ProgressCountAPIView(APIView):
     permission_classes = [IsAuthenticated,IsEnrolled]
     def post (self, request, task_id):
-        new_task = CompletedTask()
+        done_task = CompletedTask.objects
         student = request.user
         task = Task.objects.get(id=task_id)
+        if done_task.filter(student=student,task=task_id).exists():
+            return Response('You already completed this task', status=HTTP_200_OK)
+        new_task = CompletedTask()
         new_task.task = task
         new_task.student = student
         new_task.save()
