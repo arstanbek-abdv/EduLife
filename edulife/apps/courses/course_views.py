@@ -19,7 +19,6 @@ from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from django.conf import settings
-from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
 from urllib.parse import urlparse
 
@@ -28,8 +27,8 @@ from apps.courses.models import Course, Task, Enrollment, CompletedTask
 from apps.courses.permissions.course_permissions import IsTeacher, IsEnrolled
 from apps.courses.serializers.course_serializers import (
     TeacherCourseSerializer,
-    CourseOutlineSerializer,
-    EnrollmentSerializer
+    CourseSerializer,
+    EnrollmentSerializer,
 )
 
 def get_minio_client():
@@ -71,55 +70,22 @@ def normalize_clickable_url(url: str) -> str:
         return f"{scheme}://{endpoint}{path}"
     return f"{scheme}://{path.lstrip('/')}"
 
-class HomeAPIView(ReadOnlyModelViewSet):
-    queryset = Course.objects.all()
-    permission_classes = [IsAuthenticated]
-    serializer_class = CourseOutlineSerializer
-
-    def get_permissions(self):
-        if self.action in ("list", "retrieve"):
-            return [IsAuthenticated()]
-        return [IsAuthenticated(), IsTeacher()]
-
-    def get_queryset(self):
-        user = self.request.user
+class HomeAPIView(APIView):
+    def get (self,request):
+        user = request.user
         if user.role == CustomUser.Role.TEACHER:
-            return (
-                Course.objects.filter(teacher=user)
-                .annotate(
-                    enrolled_count=Count(
-                        "enrollments",
-                        filter=Q(
-                            enrollments__status__in=[
-                                Enrollment.Status.ACTIVE,
-                                Enrollment.Status.COMPLETED,
-                            ]
-                        ),
-                    )
-                )
-            )
-        if user.role == CustomUser.Role.STUDENT:
-            return Course.objects.filter(status=Course.CourseStatus.PUBLISHED)
-   
-    def get_serializer_class(self):
-        if self.action == "list":
-            if self.request.user.role == CustomUser.Role.TEACHER:
-                return TeacherCourseSerializer
-            return CourseOutlineSerializer
-        return CourseOutlineSerializer  # default for retrieve; overridden below
-
-    def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
-        if request.user.role == CustomUser.Role.TEACHER:
-            serializer = TeacherCourseSerializer(instance, context={"request": request})
-        else:
-            serializer = CourseOutlineSerializer(instance, context={"request": request})
-        return Response(serializer.data)
-
+            teacher_courses = Course.objects.filter(teacher=user)
+            serializer = TeacherCourseSerializer(teacher_courses,many=True)
+            return Response(serializer.data, status=HTTP_200_OK)
+        elif user.role == CustomUser.Role.STUDENT:
+            published_courses = Course.objects.filter(status=Course.CourseStatus.PUBLISHED)
+            serializer = CourseSerializer(published_courses,many=True)
+            return Response(serializer.data, status=HTTP_200_OK)
+        
 class CourseCatalog (ModelViewSet):
     queryset = Course.objects.all()
     permission_classes = [IsAuthenticatedOrReadOnly]
-    serializer_class = CourseOutlineSerializer
+    serializer_class = CourseSerializer
 
     def get_queryset(self):
         if self.request.user.is_anonymous or self.request.user.role == CustomUser.Role.STUDENT:
@@ -169,41 +135,12 @@ class UnenrollCourseAPIView(APIView):
 
 class TaskFileDownloadAPIView(APIView):
     """Return a short-lived presigned URL for a task file. Teacher-owner or enrolled students only."""
-
-    permission_classes = [IsAuthenticated]
-
+    permission_classes = [IsAuthenticated,IsEnrolled]
     def get(self, request, task_id, *args, **kwargs):
         task = get_object_or_404(
             Task.objects.select_related("module__course"),
             id=task_id,
         )
-        course = task.module.course
-        if request.user.role == CustomUser.Role.TEACHER:
-            if course.teacher_id != request.user.id:
-                return Response(
-                    {"detail": "You do not have access to this task file."},
-                    status=HTTP_403_FORBIDDEN,
-                )
-        elif request.user.role == CustomUser.Role.STUDENT:
-            if not Enrollment.objects.filter(
-                student=request.user,
-                course=course,
-                status__in=[Enrollment.Status.ACTIVE, Enrollment.Status.COMPLETED],
-            ).exists():
-                return Response(
-                    {"detail": "You must be enrolled in this course to access task files."},
-                    status=HTTP_403_FORBIDDEN,
-                )
-        else:
-            return Response(
-                {"detail": "Access denied."},
-                status=HTTP_403_FORBIDDEN,
-            )
-        if not task.file_key:
-            return Response(
-                {"detail": "This task has no file."},
-                status=HTTP_404_NOT_FOUND,
-            )
         client = get_minio_client()
         try:
             file_url = client.presigned_get_object(

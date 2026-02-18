@@ -23,71 +23,34 @@ class ModuleSerializer(ModelSerializer):
         read_only_fields = ["course"]
 
 
-class CourseOutlineSerializer(ModelSerializer):
-    """Course with modules and task outline only (id, title, task_type)."""
-    class Meta:
-        model = Course
-        fields = [
-            "id",
-            "title",
-            "status",
-            "description",
-            "short_description",
-            "language",
-            "category",
-        ]
-        read_only_fields = [
-            "id",
-            "title",
-            "status",
-            "description",
-            "short_description",
-            "language",
-            "category",
-        ]
-
-
 class TeacherCourseSerializer(ModelSerializer):
-    enrolled_count = serializers.SerializerMethodField()
-
-    def get_enrolled_count(self, obj):
-        return getattr(obj, "enrolled_count", None)
-
-    class Meta:
-        model = Course
-        fields = [
-            "id",
-            "title",
-            "status",
-            "description",
-            "short_description",
-            "language",
-            "category",
-            "enrolled_count",
-        ]
-        read_only_fields = [
-            "id",
-            "title",
-            "status",
-            "description",
-            "short_description",
-            "language",
-            "category",
-            "enrolled_count"
-            ]
-
-
-class CreateCourseSerializer(ModelSerializer):
+    enrollment_count = serializers.SerializerMethodField()
     class Meta:
         model = Course 
         fields = [
             "id",
-            "title",
             "status",
+            "category",
+            "title",
+            "language",
             "description",
             "short_description",
-            "language",
-            "category",
+            'enrollment_count'
         ]
+    def get_enrollment_count(self,obj):
+        count = Enrollment.objects.filter(course=obj).count()
+        return count
 
 
+class CourseSerializer(ModelSerializer):
+    class Meta:
+        model = Course
+        fields = [
+            'id',
+            'status',
+            'category',
+            'title',
+            'language',
+            'description',
+            'short_description',
+        ]

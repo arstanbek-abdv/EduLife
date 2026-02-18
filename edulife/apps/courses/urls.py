@@ -21,7 +21,7 @@ from apps.courses.course_creation import (
 # As student for viewing all the published courses and their descriptions (no task files available)
 
 urlpatterns = [
-    path('all-courses/', HomeAPIView.as_view({'get': 'list'})),
+    path('all-courses/', HomeAPIView.as_view()),
     path('catalog/', CourseCatalog.as_view({'get': 'list'})),
     path('catalog/<int:pk>/', CourseCatalog.as_view({'get':'retrieve'})),
     path('new-course/', CreateCourseAPIView.as_view()),

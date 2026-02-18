@@ -208,7 +208,7 @@ class Enrollment (models.Model):
     course = models.ForeignKey(
         Course,
         on_delete=models.PROTECT,
-        related_name='enrollments',
+        related_name='courses',
         null = False,
         blank = False,
     )

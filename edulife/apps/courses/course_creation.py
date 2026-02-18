@@ -3,7 +3,7 @@ from apps.courses.models import Course,Module,Task
 from apps.courses.permissions.course_permissions import IsTeacher
 from django.shortcuts import get_object_or_404
 from apps.courses.serializers.course_serializers import (
-    CreateCourseSerializer,
+    CourseSerializer,
     ModuleSerializer,
     TaskSerializer
 )
@@ -35,7 +35,7 @@ from minio.error import S3Error
 
 class CreateCourseAPIView(CreateAPIView):
     permission_classes = [IsAuthenticated,IsTeacher]
-    serializer_class = CreateCourseSerializer
+    serializer_class = CourseSerializer
 
     def create(self,request,*args):
         teacher = self.request.user
@@ -221,7 +221,6 @@ class PublishCourse(APIView):
         if not tasks.exists():
             cant_publish['tasks'] = "Course cannot be published without tasks!"
 
-        
         if tasks.filter(file_key__isnull=True).exists():
             cant_publish['file'] = "Each task must have a file!"
         
