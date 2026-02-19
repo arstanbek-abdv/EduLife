@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     # Installed apps
     'rest_framework', 
     'storages',
+    'drf_yasg',
     # My apps
     'apps.users',
     'apps.courses',

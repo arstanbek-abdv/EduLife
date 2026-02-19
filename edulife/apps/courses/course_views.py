@@ -115,22 +115,23 @@ class StudentDashboard(APIView):
     
 class CourseCatalog (ModelViewSet):
     permission_classes = [IsAuthenticatedOrReadOnly]
-    def get(self,request):
-        user = request.user
-        if user.is_anonymous:
-            queryset = Course.objects.filter(status=Course.CourseStatus.PUBLISHED).select_related('teacher')
-            
-            category = request.query_params.get('category')
-            title = request.query_params.get('title')
-            
-            if category:
-                queryset = queryset.filter(category_id=category)
-            if title:
-                queryset = queryset.filter(title__icontains=title)
-            
-            serializer = CourseSerializer(queryset, many=True, context={'request': request})
-            return Response(serializer.data, status=HTTP_200_OK)
+    serializer_class = CourseSerializer
+    http_method_names = ['get']  # read-only
 
+    def get_queryset(self):
+        qs = Course.objects.filter(
+            status=Course.CourseStatus.PUBLISHED
+        ).select_related('teacher')
+
+        category = self.request.query_params.get('category')
+        title = self.request.query_params.get('title')
+
+        if category:
+            qs = qs.filter(category_id=category)
+        if title:
+            qs = qs.filter(title__icontains=title)
+
+        return qs
 
 class EnrollToCourseAPIView(APIView):
     permission_classes = [IsAuthenticated]
