@@ -2,8 +2,7 @@ from apps.courses.course_views import get_minio_client, ensure_bucket, remove_ob
 
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.views import APIView
-from rest_framework.generics import CreateAPIView
-
+from rest_framework.generics import CreateAPIView, RetrieveAPIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_200_OK, HTTP_502_BAD_GATEWAY
@@ -36,6 +35,20 @@ class LookUserProfileAPIView(ModelViewSet):
 
     def get_object(self):
         return self.request.user
+
+
+class TeacherPublicProfileAPIView(RetrieveAPIView):
+    """Public profile for teachers; students can view by teacher id."""
+    permission_classes = [IsAuthenticated]
+    serializer_class = LookProfileSerializer
+
+    def get_object(self):
+        teacher = get_object_or_404(CustomUser, pk=self.kwargs['pk'])
+        if teacher.role != CustomUser.Role.TEACHER:
+            from rest_framework.exceptions import NotFound
+            raise NotFound()
+        return teacher
+
 
 class RegisterUserAPIView(CreateAPIView): 
     permission_classes = [AllowAny]

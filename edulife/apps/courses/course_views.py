@@ -64,33 +64,73 @@ def normalize_clickable_url(url: str) -> str:
         return url
     scheme = "https" if getattr(settings, "MINIO_USE_SSL", False) else "http"
     endpoint = getattr(settings, "MINIO_ENDPOINT", "").strip().lstrip("/")
-    # If MinIO already returned a path-only URL, keep it.
     path = url if url.startswith("/") else f"/{url}"
     if endpoint:
         return f"{scheme}://{endpoint}{path}"
     return f"{scheme}://{path.lstrip('/')}"
 
 class HomeAPIView(APIView):
-    def get (self,request):
+    permission_classes = [IsAuthenticated]
+    def get(self, request):
         user = request.user
+        
         if user.role == CustomUser.Role.TEACHER:
-            teacher_courses = Course.objects.filter(teacher=user)
-            serializer = TeacherCourseSerializer(teacher_courses,many=True)
+            queryset = Course.objects.filter(teacher=user)
+            
+            category = request.query_params.get('category')
+            title = request.query_params.get('title')
+            
+            if category:
+                queryset = queryset.filter(category_id=category)
+            if title:
+                queryset = queryset.filter(title__icontains=title)
+            
+            serializer = TeacherCourseSerializer(queryset, many=True)
             return Response(serializer.data, status=HTTP_200_OK)
+            
         elif user.role == CustomUser.Role.STUDENT:
-            published_courses = Course.objects.filter(status=Course.CourseStatus.PUBLISHED)
-            serializer = CourseSerializer(published_courses,many=True)
+            queryset = Course.objects.filter(status=Course.CourseStatus.PUBLISHED).select_related('teacher')
+            
+            category = request.query_params.get('category')
+            title = request.query_params.get('title')
+            
+            if category:
+                queryset = queryset.filter(category_id=category)
+            if title:
+                queryset = queryset.filter(title__icontains=title)
+            
+            serializer = CourseSerializer(queryset, many=True, context={'request': request})
             return Response(serializer.data, status=HTTP_200_OK)
         
+        return Response({"detail": "Invalid user role"}, status=HTTP_403_FORBIDDEN)
+    
+class StudentDashboard(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request):
+        user = request.user
+        queryset = Course.objects.filter(enrollments__student=user).select_related('teacher').distinct()
+        serializer = CourseSerializer(queryset, many=True, context={'request': request})
+        return Response(serializer.data, status=HTTP_200_OK)
+    
+    
 class CourseCatalog (ModelViewSet):
-    queryset = Course.objects.all()
     permission_classes = [IsAuthenticatedOrReadOnly]
-    serializer_class = CourseSerializer
+    def get(self,request):
+        user = request.user
+        if user.is_anonymous:
+            queryset = Course.objects.filter(status=Course.CourseStatus.PUBLISHED).select_related('teacher')
+            
+            category = request.query_params.get('category')
+            title = request.query_params.get('title')
+            
+            if category:
+                queryset = queryset.filter(category_id=category)
+            if title:
+                queryset = queryset.filter(title__icontains=title)
+            
+            serializer = CourseSerializer(queryset, many=True, context={'request': request})
+            return Response(serializer.data, status=HTTP_200_OK)
 
-    def get_queryset(self):
-        if self.request.user.is_anonymous or self.request.user.role == CustomUser.Role.STUDENT:
-            return Course.objects.filter(status=Course.CourseStatus.PUBLISHED)
-     
 
 class EnrollToCourseAPIView(APIView):
     permission_classes = [IsAuthenticated]

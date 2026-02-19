@@ -3,14 +3,17 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils.text import slugify
 from apps.users.models import CustomUser
 from django.db import models
-from django.utils import timezone
-# STORES ALL CATEGORIES!
+
+"""
+1. Написать везде verbose_name в каждом блять поле в каждой модельке
+
+"""
 class Category(models.Model):
-    name = models.CharField(max_length=200)
-    slug = models.SlugField(max_length=120, unique=True, blank=True)
+    name = models.CharField(max_length=200, verbose_name="Название")
+    slug = models.SlugField(max_length=200, unique=True, blank=True, verbose_name="Slug")
     
     def save(self, *args, **kwargs):
-        if not self.slug:                        # only generate if empty
+        if not self.slug:
             base_slug = slugify(self.name)
             slug = base_slug
             counter = 1
@@ -21,17 +24,15 @@ class Category(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return str(self.name)
+        return f"{self.name} {self.slug} {self.id}"
     
 
-# STORES ALL COURSES!
-class Course (models.Model):
-
-    class CourseStatus (models.TextChoices):
+class Course(models.Model):
+    class CourseStatus(models.TextChoices):
         PUBLISHED = 'published', 'Published'
         DRAFT = 'draft', 'Draft'
 
-    title = models.CharField(max_length=200,unique=True)
+    title = models.CharField(max_length=200, unique=True)
     description = models.TextField()
     short_description = models.TextField()
     language = models.CharField(max_length=20)
@@ -42,9 +43,9 @@ class Course (models.Model):
         null = True,
     )
     original_file_name = models.CharField(max_length=255, blank=True, null=True)
-    file_key = models.CharField(max_length=512, blank=True, null=True) # permanent MinIO path
+    file_key = models.CharField(max_length=512, blank=True, null=True)
     file_mime_type = models.CharField(max_length=100, blank=True, null=True)
-    teacher = models.ForeignKey( 
+    teacher = models.ForeignKey(
         CustomUser, 
         limit_choices_to={'role':CustomUser.Role.TEACHER},
         on_delete=models.SET_NULL,
@@ -55,26 +56,25 @@ class Course (models.Model):
     category = models.ForeignKey(
         Category,
         on_delete=models.SET_NULL,
-        null=True,blank=True,
+        null=True, blank=True,
         related_name='categories'
     )
     
-    status = models.CharField(max_length=20,default=CourseStatus.DRAFT)
+    status = models.CharField(max_length=20, default=CourseStatus.DRAFT)
     creation_time = models.DateTimeField(auto_now_add=True)
     updated_time = models.DateTimeField(auto_now=True)
     published_at = models.DateTimeField(null=True, blank=True)
+
     def __str__(self):
-        return f'id:{self.id} {self.title}'
+        return f'{self.id} {self.title}'
 
-# STORES ALL MODULES!
+
 class Module (models.Model):
-
     course = models.ForeignKey(
         Course,
         on_delete=models.PROTECT,
         related_name='modules'
     )
-
     title = models.CharField(max_length=255)
     description = models.TextField()
     order = models.PositiveIntegerField(default=1)
@@ -91,28 +91,29 @@ class Module (models.Model):
         unique_together = [['course', 'order']]
 
     def __str__(self):
-        return f'Module {self.title} in {self.course} Course'
+        return f'{self.title} {self.course}'
 
 
-# STORES ALL TASKS!
 class Task (models.Model):
-    
     class TaskType (models.TextChoices):
         DOCUMENT = 'document', 'Document'
         VIDEO = 'video', 'Video'
-
     title = models.CharField(max_length=200)
     description = models.TextField()
-    module = models.ForeignKey(Module,on_delete=models.PROTECT, related_name='tasks')
+    module = models.ForeignKey(
+        Module, 
+        on_delete=models.PROTECT, 
+        related_name='tasks'
+    )
     task_type = models.CharField(max_length=20, choices=TaskType.choices, default=TaskType.VIDEO)
     file_content = models.FileField(
         upload_to='',
         blank = True,
         null = True,
     )
-    file_key = models.CharField(max_length=512, blank=True, null=True) # permanent MinIO path
+    file_key = models.CharField(max_length=512, blank=True, null=True)
     file_mime_type = models.CharField(max_length=100, blank=True, null=True)
-    file_size = models.BigIntegerField(null=True, blank=True) # size in bytes 
+    file_size = models.BigIntegerField(null=True, blank=True)
     original_file_name = models.CharField(max_length=255, blank=True, null=True)
     external_url = models.URLField(
         max_length=500,
@@ -120,14 +121,13 @@ class Task (models.Model):
         null=True,
         help_text="External resource URL"
     )
-
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
     def __str__(self):
-        return f'id:{self.id} Task {self.title} in {self.module}'
+        return f'{self.id} {self.title} {self.module}'
 
 
-# TRACKS PROGRESS! 
 class CompletedTask (models.Model):
     student = models.ForeignKey(
         CustomUser,
@@ -141,6 +141,7 @@ class CompletedTask (models.Model):
         related_name='tasks'
     )
     completed_at = models.DateTimeField(auto_now_add=True)
+
     class Meta:
         constraints = [
             models.UniqueConstraint(
@@ -149,17 +150,21 @@ class CompletedTask (models.Model):
             )
         ]
 
+        #TODO нету __str__ метода
 
-# STORES COURSE REVIEWS BY STUDENTS!
+
+
 class Review (models.Model):
     student = models.ForeignKey(
         CustomUser,
         limit_choices_to={'role':CustomUser.Role.STUDENT},
-        on_delete=models.CASCADE
+        on_delete=models.CASCADE,
+        related_name='reviews'
     )
     course = models.ForeignKey(
         Course,
-        on_delete=models.CASCADE
+        on_delete=models.CASCADE,
+        related_name='reviews'
     ) 
     rating = models.PositiveSmallIntegerField(
         validators=[MinValueValidator(1), 
@@ -180,46 +185,41 @@ class Review (models.Model):
         ]
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['course', 'rating']),   # useful for avg rating queries
+            models.Index(fields=['course', 'rating']),
             models.Index(fields=['student']),
         ]
+    
+    def __str__(self):
+        return f'{self.student.get_full_name()} - {self.course.title} ({self.rating}/5)'
 
 
-# STORES ALL ENROLLMENTS 
 class Enrollment (models.Model):
-
     class Status (models.TextChoices):
         ACTIVE    = 'active',    'Active'
         COMPLETED = 'completed', 'Completed'
         DROPPED   = 'dropped',   'Dropped'
-
-    status = models.CharField(max_length=20,default=Status.ACTIVE)
+    status = models.CharField(max_length=20, default=Status.ACTIVE)
     created_at = models.DateTimeField(auto_now_add=True)
-
     student = models.ForeignKey(
         CustomUser,
         on_delete=models.PROTECT,
         limit_choices_to={'role': CustomUser.Role.STUDENT},
         related_name='enrollments',
-        null = False,
-        blank = False,
     )
 
     course = models.ForeignKey(
         Course,
         on_delete=models.PROTECT,
-        related_name='courses',
-        null = False,
-        blank = False,
+        related_name='enrollments',
     )
 
     class Meta:
         constraints = [
             models.UniqueConstraint( 
-            fields=['student', 'course'],
-            name='unique_student_course_enrollment',
-        )
+                fields=['student', 'course'],
+                name='unique_student_course_enrollment',
+            )
         ]
 
     def __str__(self):
-        return f'{str(self.student)} in {str(self.course.title)}'
+        return f'{str(self.student)} {str(self.course.title)}'

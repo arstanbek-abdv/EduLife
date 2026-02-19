@@ -11,7 +11,7 @@ from rest_framework.views import APIView
 from rest_framework.generics import CreateAPIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ValidationError
 
 from rest_framework.status import (
@@ -19,11 +19,12 @@ from rest_framework.status import (
     HTTP_200_OK,
     HTTP_502_BAD_GATEWAY,
 )
-from apps.courses.course_views import (ensure_bucket, 
+from apps.courses.course_views import (
+    ensure_bucket, 
     get_minio_client, 
     remove_object_if_exists, 
     normalize_clickable_url,
-    )
+)
 from django.conf import settings 
 from datetime import timedelta
 from django.utils import timezone
@@ -139,17 +140,15 @@ class CourseCoverUpload(APIView):
 class TaskFileUpload(APIView):
     permission_classes = [IsAuthenticated, IsTeacher]
 
-    # Ensures that task belongs to course that is owned by a teacher
     def owned_task(self, request, task_id):
         task = get_object_or_404(
             Task.objects.select_related('module__course'),
             id=task_id,
             module__course__teacher=request.user,
         )
-        self.check_object_permissions(request, task)  # permissions won't run unless object-level checks run
+        self.check_object_permissions(request, task)
         return task
 
-    # Uploads to minIO
     def put(self, request, task_id, *args, **kwargs):
         task = self.owned_task(request, task_id)
         uploaded = request.FILES.get('file')
@@ -212,7 +211,7 @@ class PublishCourse(APIView):
         self.check_object_permissions(request, course)
         cant_publish = {}
         if course.file_key is None:
-            cant_publish['cover']='Course cannot be published without a cover!'
+            cant_publish['cover'] = 'Course cannot be published without a cover!'
        
         if not Module.objects.filter(course_id=course_id).exists():
             cant_publish['module'] = "Course cannot be published without modules!"
@@ -223,23 +222,38 @@ class PublishCourse(APIView):
 
         if tasks.filter(file_key__isnull=True).exists():
             cant_publish['file'] = "Each task must have a file!"
-        
+        #TODO Псмотреть бест практисы по респонсам по типу: 
+        """
+        {
+            "message": "Task creation error",
+            "errors": [
+                {
+                    "field": "file",
+                    "code": "required",
+                    "message": "Task must include file"
+                },
+            ]
+        }
+        """
         if cant_publish:
             raise ValidationError(cant_publish)
         else:
             return course
         
     def post(self, request, course_id, *args, **kwargs):
-        course = self.get_course_and_validate(request, course_id)
+        course = get_object_or_404(Course, id=course_id, teacher=request.user)
         if course.status == Course.CourseStatus.PUBLISHED:
             return Response(
                 {"detail": "Course is already published.", "status": course.status, "published_at": course.published_at},
-                status=HTTP_200_OK,
+                status=HTTP_400_BAD_REQUEST,
             )
+        course = self.get_course_and_validate(request, course_id)
         course.status = Course.CourseStatus.PUBLISHED
         course.published_at = timezone.now()
         course.save(update_fields=["status", "published_at"])
+        course = Course.objects.select_related('teacher').get(pk=course.pk)
+        serializer = CourseSerializer(course, context={'request': request})
         return Response(
-            {"id": course.id, "status": course.status, "published_at": course.published_at},
+            serializer.data,
             status=HTTP_200_OK,
         )
