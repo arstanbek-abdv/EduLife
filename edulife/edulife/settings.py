@@ -31,6 +31,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -78,6 +79,14 @@ WSGI_APPLICATION = 'edulife.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
+JAZZMIN_SETTINGS = {
+    "site_title": "EduLife Admin Panel",
+    "site_header": "EduLife Admin Panel",
+    "site_brand": "Admin Panel",
+    "welcome_sign": "Welcome to the Admin Panel",
+    "show_sidebar": True,
+    "navigation_expanded": True,
+}
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
