@@ -12,7 +12,6 @@ from apps.users.models import CustomUser
 class ReviewViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing course reviews.
-    
     - list: Get all reviews for a specific course (query param: course_id)
     - retrieve: Get a specific review
     - create: Create a new review (students only, must be enrolled)

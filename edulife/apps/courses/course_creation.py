@@ -31,10 +31,18 @@ from django.utils import timezone
 import uuid 
 import os 
 
-from minio import Minio
+from edulife.settings import DATA_UPLOAD_MAX_MEMORY_SIZE
 from minio.error import S3Error
 
 class CreateCourseAPIView(CreateAPIView):
+    ''' 
+    Only teachers can create courses. 
+    Course includes brief description and essential info,
+    created coures are draft by default.
+    Only admin and teachers can edit course drafts.
+    The course can comprise many modules and modules 
+    can consist of multiple tasks. Each task must have a file attached.
+    '''
     permission_classes = [IsAuthenticated,IsTeacher]
     serializer_class = CourseSerializer
 
@@ -48,6 +56,10 @@ class CreateCourseAPIView(CreateAPIView):
 
 
 class CreateModuleAPIView(CreateAPIView):
+    ''' 
+    A module cannot exist outside of a course, by its own.
+    Therefore, each module must reference a course.
+    '''
     permission_classes = [IsAuthenticated,IsTeacher]
     serializer_class = ModuleSerializer
 
@@ -62,6 +74,11 @@ class CreateModuleAPIView(CreateAPIView):
     
 
 class CreateTaskAPIView(CreateAPIView):
+    '''
+    Likewise with modules course cannot exist by its own 
+    outside of courses and modules, hence each task must referene 
+    a module.
+    '''
     permission_classes = [IsAuthenticated,IsTeacher]
     serializer_class = TaskSerializer
 
@@ -76,6 +93,12 @@ class CreateTaskAPIView(CreateAPIView):
     
        
 class CourseCoverUpload(APIView):
+    ''' 
+    Uploads cover image of a course.
+    If course doesn't exist or the endpoint accessed
+    by third party returns Error 404.
+    Returns a URL for viewing the image.
+    '''
     permission_classes = [IsAuthenticated, IsTeacher]
 
     def course_teacher(self, request, course_id):
@@ -138,6 +161,11 @@ class CourseCoverUpload(APIView):
 
 
 class TaskFileUpload(APIView):
+    ''' 
+    Only teacher can access this endpoint. Uploads a task file for a task. 
+    If task doesn't exist or the endpoint is accessed by third party
+    it returns Error 404.
+    '''
     permission_classes = [IsAuthenticated, IsTeacher]
 
     def owned_task(self, request, task_id):
@@ -157,7 +185,10 @@ class TaskFileUpload(APIView):
         ext = os.path.splitext(uploaded.name)[1]
         file_key = f'tasks/{task.id}/{uuid.uuid4().hex}{ext}'
 
+        if uploaded.size > DATA_UPLOAD_MAX_MEMORY_SIZE:
+            return Response({'file':'File too large (max 2 GB)'}, status=HTTP_400_BAD_REQUEST)
         client = get_minio_client()
+        
         try:
             ensure_bucket(client, settings.MINIO_BUCKET_NAME)
             if task.file_key:
@@ -204,6 +235,17 @@ class TaskFileUpload(APIView):
     
 
 class PublishCourse(APIView):
+    ''' 
+    Before publishing the course and making it available for students 
+    to see and enroll it validates the course integrity.
+    Every course must have a cover image, at least one module. 
+    Each module must have at least one task, and a task must must 
+    have a file. If the course doesn't meet the requirements it returns 
+    the error message containing why it couldn't be published.
+    Example:
+        cover: Course cannot be published without a cover!
+    If the course doesn't exist it returns Error 404
+    '''
     permission_classes = [IsAuthenticated, IsTeacher]
 
     def get_course_and_validate(self, request, course_id):
@@ -222,6 +264,7 @@ class PublishCourse(APIView):
 
         if tasks.filter(file_key__isnull=True).exists():
             cant_publish['file'] = "Each task must have a file!"
+
         #TODO Псмотреть бест практисы по респонсам по типу: 
         """
         {
@@ -235,6 +278,7 @@ class PublishCourse(APIView):
             ]
         }
         """
+
         if cant_publish:
             raise ValidationError(cant_publish)
         else:

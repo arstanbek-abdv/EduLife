@@ -88,6 +88,8 @@ JAZZMIN_SETTINGS = {
     "show_sidebar": True,
     "navigation_expanded": True,
 }
+
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -125,6 +127,9 @@ STORAGES = {
     },
 }
 
+DATA_UPLOAD_MAX_MEMORY_SIZE = 629145600
+FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800
+
 MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "localhost:9000")
 MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
 MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin123")
@@ -135,6 +140,19 @@ MINIO_ENDPOINT_URL = os.getenv(
     "MINIO_ENDPOINT_URL",
     f"http{'s' if MINIO_USE_SSL else ''}://{MINIO_ENDPOINT}",
 )
+
+
+SWAGGER_SETTINGS = {
+    'USE_SESSION_AUTH': False,  # disables Django login auth
+    'SECURITY_DEFINITIONS': {
+        'Bearer': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header',
+            'description': 'JWT Authorization header. Example: Bearer <access_token>',
+        }
+    }
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators

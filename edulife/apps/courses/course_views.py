@@ -70,6 +70,18 @@ def normalize_clickable_url(url: str) -> str:
     return f"{scheme}://{path.lstrip('/')}"
 
 class HomeAPIView(APIView):
+    ''' 
+    Returns all published courses for students (must be authenticated)
+    and shows all teacher's courses draft/published.
+    Allows to search for courses based on their title and category.
+
+    For students the endpoint returns published courses containing basic 
+    info about it, URL for cover image, URL to teacher's profile 
+    who published the course, name and email, average rating.
+
+    Teachers see all their courses/draft and published. average rating and enrollment count
+    for published courses.
+    '''
     permission_classes = [IsAuthenticated]
     def get(self, request):
         user = request.user
@@ -101,10 +113,18 @@ class HomeAPIView(APIView):
             
             serializer = CourseSerializer(queryset, many=True, context={'request': request})
             return Response(serializer.data, status=HTTP_200_OK)
-        
         return Response({"detail": "Invalid user role"}, status=HTTP_403_FORBIDDEN)
     
+
 class StudentDashboard(APIView):
+    ''' 
+    Returns all enrolled courses of a student.
+    Also each course contains basic info about itself,
+    URL for cover image, URL to teacher's profile 
+    who published the course, name and email, average rating.
+
+
+    '''
     permission_classes = [IsAuthenticated]
     def get(self, request):
         user = request.user
@@ -114,6 +134,11 @@ class StudentDashboard(APIView):
     
     
 class CourseCatalog (ModelViewSet):
+    ''' 
+    Returns all published courses for Unuathenticated users. 
+    Passing course_id as query param allows to view a particular course.
+    Allows to search courses based on categories
+    '''
     permission_classes = [IsAuthenticatedOrReadOnly]
     serializer_class = CourseSerializer
     http_method_names = ['get']  # read-only
@@ -134,8 +159,12 @@ class CourseCatalog (ModelViewSet):
         return qs
 
 class EnrollToCourseAPIView(APIView):
+    ''' 
+    This endpoint creates new enrollment record for a student and a course.
+    If the student is already enrolled in a course, the endpoint will return 
+    according message.
+    '''
     permission_classes = [IsAuthenticated]
-
     def post(self, request, course_id, *args, **kwargs):
         if request.user.role != CustomUser.Role.STUDENT:
             return Response(
@@ -165,6 +194,9 @@ class EnrollToCourseAPIView(APIView):
     
 
 class UnenrollCourseAPIView(APIView):
+    ''' 
+    Changes status field of enrollment record of a student and a course.
+    '''
     permission_classes = [IsAuthenticated]
     def put(self,request,course_id,*args,**kwargs):
         enrollment = get_object_or_404(Enrollment,student=request.user, course=course_id)
@@ -175,7 +207,11 @@ class UnenrollCourseAPIView(APIView):
 
 
 class TaskFileDownloadAPIView(APIView):
-    """Return a short-lived presigned URL for a task file. Teacher-owner or enrolled students only."""
+    ''' 
+    Returns a short-lived URL of a task file which 
+    belongs to the course. Only enrolled students for 
+    the course can access this URL.
+    '''
     permission_classes = [IsAuthenticated,IsEnrolled]
     def get(self, request, task_id, *args, **kwargs):
         task = get_object_or_404(
@@ -198,6 +234,10 @@ class TaskFileDownloadAPIView(APIView):
         return Response({"url": file_url}, status=HTTP_200_OK)
 
 class ProgressCountAPIView(APIView):
+    '''
+    Calculates the overall course progerss.
+    Course total = (completed tasks/all tasks of a course)*100
+    '''
     permission_classes = [IsAuthenticated,IsEnrolled]
     def post (self, request, task_id):
         done_task = CompletedTask.objects

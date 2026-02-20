@@ -5,6 +5,7 @@ from rest_framework.views import APIView
 from rest_framework.generics import CreateAPIView, RetrieveAPIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.exceptions import NotFound
 from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_200_OK, HTTP_502_BAD_GATEWAY
 from django.shortcuts import get_object_or_404
 from urllib.parse import urlparse
@@ -19,6 +20,9 @@ from django.conf import settings
 import os, uuid 
 
 class EditUserProfileAPIView(ModelViewSet):
+    ''' 
+    Allows users to edit their own profile.
+    '''
     queryset = CustomUser.objects.all()
     serializer_class = EditProfileSerializer
     permission_classes = [IsAuthenticated]
@@ -28,6 +32,9 @@ class EditUserProfileAPIView(ModelViewSet):
         return self.request.user
 
 class LookUserProfileAPIView(ModelViewSet):
+    '''
+    Allows users to view their own profile
+    '''
     queryset = CustomUser.objects.all()
     serializer_class = LookProfileSerializer
     permission_classes = [IsAuthenticated]
@@ -45,16 +52,23 @@ class TeacherPublicProfileAPIView(RetrieveAPIView):
     def get_object(self):
         teacher = get_object_or_404(CustomUser, pk=self.kwargs['pk'])
         if teacher.role != CustomUser.Role.TEACHER:
-            from rest_framework.exceptions import NotFound
             raise NotFound()
         return teacher
 
 
 class RegisterUserAPIView(CreateAPIView): 
+    ''' 
+    For registration. Required fields: first name,
+    last name, username, email, password
+    '''
     permission_classes = [AllowAny]
     serializer_class = RegisterUserSerializer
 
 class UploadUserProfile(APIView):
+    ''' 
+    For uploading user profile.
+    Max size 8 mb.
+    '''
     permission_classes = [IsAuthenticated]
     def patch (self,request):
         user = request.user
@@ -68,7 +82,7 @@ class UploadUserProfile(APIView):
 
         # Basic size limit (adjust number to your needs)
         if uploaded.size > 8 * 1024 * 1024:  # 8 MB
-            return Response({'file': 'File too large (max 8 MB)'}, status=400)
+            return Response({'file': 'File too large (max 8 MB)'}, status=HTTP_400_BAD_REQUEST)
 
         # Fix extension extraction
         _, ext = os.path.splitext(uploaded.name)
