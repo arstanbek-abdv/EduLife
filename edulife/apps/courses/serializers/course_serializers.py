@@ -8,32 +8,7 @@ from minio import Minio
 
 from apps.courses.models import Course, Module, Task, Enrollment, Review
 from apps.users.models import CustomUser
-
-
-def get_minio_client():
-    return Minio(
-        settings.MINIO_ENDPOINT,
-        access_key=settings.MINIO_ACCESS_KEY,
-        secret_key=settings.MINIO_SECRET_KEY,
-        secure=settings.MINIO_USE_SSL,
-    )
-
-
-def normalize_clickable_url(url: str) -> str:
-    """
-    Ensure URL is fully qualified (scheme + netloc), so UIs render it clickable.
-    """
-    if not url:
-        return url
-    parsed = urlparse(url)
-    if parsed.scheme and parsed.netloc:
-        return url
-    scheme = "https" if getattr(settings, "MINIO_USE_SSL", False) else "http"
-    endpoint = getattr(settings, "MINIO_ENDPOINT", "").strip().lstrip("/")
-    path = url if url.startswith("/") else f"/{url}"
-    if endpoint:
-        return f"{scheme}://{endpoint}{path}"
-    return f"{scheme}://{path.lstrip('/')}"
+from apps.courses.utils import get_minio_client, normalize_clickable_url
 
 class TeacherBasicSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField()
@@ -122,6 +97,7 @@ class TaskSerializer(ModelSerializer):
     class Meta:
         model = Task
         fields = ['id','title','description', 'module', 'file_url']
+        read_only_fields = ['module']
 
     def get_file_url(self, obj):
         if not obj.file_key:
@@ -142,7 +118,7 @@ class ModuleSerializer(ModelSerializer):
     class Meta:
         model = Module
         fields = ["id","course","title", "description", "order"]
-        read_only_fields = ["course"]
+        read_only_fields = ['id',"course"]
 
 
 class TeacherCourseSerializer(ModelSerializer):
@@ -189,8 +165,19 @@ class TeacherCourseSerializer(ModelSerializer):
         except Exception:
             return None
 
+    def validate(self, attrs):
+        instance = self.instance 
+        if instance and instance == Course.CourseStatus.PUBLISHED:
+            blocked = {'language','category'}
+            changed = blocked.intersection(attrs.keys())
+            if changed:
+                raise serializers.ValidationError(
+                    {field:'Cannot be changed after publication' for field in changed}
+                )
+        return attrs
 
-class CourseSerializer(ModelSerializer):
+
+class StudentCourseSerializer(ModelSerializer):
     cover_url = serializers.SerializerMethodField()
     average_rating = serializers.SerializerMethodField()
     teacher_info = TeacherBasicSerializer(source='teacher', read_only=True)
@@ -209,7 +196,8 @@ class CourseSerializer(ModelSerializer):
             'average_rating',
             'teacher_info',
         ]
-
+        read_only_fields = ['status', 'average_rating', 'teacher_info']
+        
     def get_average_rating(self, obj):
         from django.db.models import Avg
         result = Review.objects.filter(course=obj).aggregate(Avg('rating'))
@@ -229,3 +217,4 @@ class CourseSerializer(ModelSerializer):
             return normalize_clickable_url(file_url)
         except Exception:
             return None
+        

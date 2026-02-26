@@ -19,7 +19,6 @@ class PasswordResetRequestAPIView(APIView):
 
         if not email:
             return Response({"error": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
-
         try:
             user = CustomUser.objects.get(email=email, is_active=True)
         except CustomUser.DoesNotExist:

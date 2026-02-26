@@ -11,10 +11,10 @@ class EditProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
         fields = [
-            'first_name', 'last_name', 'username',
-            'email', 'bio'
+            'first_name', 'last_name','role','username',
+            'email', 'bio',
         ]
-
+        read_only_fields = ['role']
 
 class LookProfileSerializer(serializers.ModelSerializer):
     profile_picture_url = serializers.SerializerMethodField()
@@ -46,7 +46,7 @@ class LookProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
         fields = [
-            'first_name', 'last_name', 'role',
+            'first_name', 'last_name', 'role','username',
             'email', 'bio', 'profile_picture_url'
         ]
   

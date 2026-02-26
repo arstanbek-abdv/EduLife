@@ -32,7 +32,7 @@ class Course(models.Model):
         PUBLISHED = 'published', 'Published'
         DRAFT = 'draft', 'Draft'
 
-    title = models.CharField(max_length=200, unique=True)
+    title = models.CharField(max_length=200, unique=True, verbose_name='')
     description = models.TextField()
     short_description = models.TextField()
     language = models.CharField(max_length=20)
@@ -75,7 +75,7 @@ class Module (models.Model):
         on_delete=models.PROTECT,
         related_name='modules'
     )
-    title = models.CharField(max_length=255)
+    title = models.CharField(max_length=255, unique=True)
     description = models.TextField()
     order = models.PositiveIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -98,7 +98,7 @@ class Task (models.Model):
     class TaskType (models.TextChoices):
         DOCUMENT = 'document', 'Document'
         VIDEO = 'video', 'Video'
-    title = models.CharField(max_length=200)
+    title = models.CharField(max_length=200,unique=True)
     description = models.TextField()
     module = models.ForeignKey(
         Module, 
@@ -131,13 +131,13 @@ class Task (models.Model):
 class CompletedTask (models.Model):
     student = models.ForeignKey(
         CustomUser,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         limit_choices_to={'role':CustomUser.Role.STUDENT},
         related_name='students'
     )
     task = models.ForeignKey(
         Task,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name='tasks'
     )
     completed_at = models.DateTimeField(auto_now_add=True)
@@ -151,7 +151,6 @@ class CompletedTask (models.Model):
         ]
 
         #TODO нету __str__ метода
-
 
 
 class Review (models.Model):
@@ -204,9 +203,8 @@ class Enrollment (models.Model):
         CustomUser,
         on_delete=models.PROTECT,
         limit_choices_to={'role': CustomUser.Role.STUDENT},
-        related_name='enrollments',
+        related_name='student_enrollments',
     )
-
     course = models.ForeignKey(
         Course,
         on_delete=models.PROTECT,

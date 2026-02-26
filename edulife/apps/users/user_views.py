@@ -1,4 +1,4 @@
-from apps.courses.course_views import get_minio_client, ensure_bucket, remove_object_if_exists, normalize_clickable_url
+from apps.courses.utils import get_minio_client, ensure_bucket, remove_object_if_exists, normalize_clickable_url
 
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.views import APIView

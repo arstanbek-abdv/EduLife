@@ -5,11 +5,11 @@ from apps.courses.course_views import (
     CourseCatalog, HomeAPIView,
     EnrollToCourseAPIView, UnenrollCourseAPIView,
     TaskFileDownloadAPIView, ProgressCountAPIView,
-    StudentDashboard
+    
 )
 from apps.courses.course_creation import (
-    CreateCourseAPIView, CreateModuleAPIView,
-    CreateTaskAPIView , TaskFileUpload,
+    CreateEditCourse, CreateEditModule,
+    CreateEditTask , TaskFileUpload,
     CourseCoverUpload, PublishCourse
 )
 from apps.courses.review_views import ReviewViewSet
@@ -22,13 +22,15 @@ router.register(r'tasks', TaskViewSet, basename='task')
 
 urlpatterns = [
     path('', include(router.urls)),
-    path('all-courses/', HomeAPIView.as_view()),
+    path('my-courses/', HomeAPIView.as_view()),
     path('catalog/', CourseCatalog.as_view({'get': 'list'})),
-    path('catalog/<int:pk>/', CourseCatalog.as_view({'get':'retrieve'})),
-    path('my-courses/', StudentDashboard.as_view()),
-    path('new-course/', CreateCourseAPIView.as_view()),
-    path('new-course/<int:course_id>/modules/', CreateModuleAPIView.as_view()),
-    path('modules/<int:module_id>/tasks/',CreateTaskAPIView.as_view()),
+    path('catalog/<int:course_id>/', CourseCatalog.as_view({'get':'retrieve'})),
+    path('new-course/', CreateEditCourse.as_view({'post':'create'})),
+    path('new-course/<int:pk>/', CreateEditCourse.as_view({'patch':'partial_update','delete':'destroy'})),
+    path('new-course/<int:course_id>/modules/', CreateEditModule.as_view({'post':'create'})),
+    path('new-course/<int:course_id>/modules/<int:pk>/', CreateEditModule.as_view({'patch':'partial_update','delete':'destroy'})),
+    path('modules/<int:module_id>/tasks/', CreateEditTask.as_view({'post':'create'})),
+    path('modules/<int:module_id>/tasks/<int:pk>/', CreateEditTask.as_view({'patch':'partial_update','delete':'destroy'})),
     path("tasks/<int:task_id>/upload/", TaskFileUpload.as_view()),
     path("tasks/<int:task_id>/file/", TaskFileDownloadAPIView.as_view()),
     path('tasks/<int:task_id>/progress/', ProgressCountAPIView.as_view()),

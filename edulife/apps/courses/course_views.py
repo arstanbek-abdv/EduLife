@@ -1,73 +1,37 @@
 from datetime import timedelta
-import os
-import uuid
-
-from minio import Minio
-from minio.error import S3Error
-
 from rest_framework.views import APIView
 from rest_framework.status import (
     HTTP_400_BAD_REQUEST,
     HTTP_200_OK,
     HTTP_403_FORBIDDEN,
-    HTTP_404_NOT_FOUND,
     HTTP_409_CONFLICT,
     HTTP_502_BAD_GATEWAY,
 )
 from rest_framework.response import Response
-from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
-from rest_framework.generics import CreateAPIView
+from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 from urllib.parse import urlparse
+from minio import Minio
+from minio.error import S3Error
 
 from apps.users.models import CustomUser
 from apps.courses.models import Course, Task, Enrollment, CompletedTask
-from apps.courses.permissions.course_permissions import IsTeacher, IsEnrolled
+from apps.courses.permissions.course_permissions import  IsEnrolled
 from apps.courses.serializers.course_serializers import (
     TeacherCourseSerializer,
-    CourseSerializer,
+    StudentCourseSerializer,
     EnrollmentSerializer,
 )
 
-def get_minio_client():
-    return Minio(
-        settings.MINIO_ENDPOINT,
-        access_key=settings.MINIO_ACCESS_KEY,
-        secret_key=settings.MINIO_SECRET_KEY,
-        secure=settings.MINIO_USE_SSL,
-    )
+from apps.courses.utils import (
+    get_minio_client,
+    ensure_bucket,
+    remove_object_if_exists,
+    normalize_clickable_url,
+)
 
-
-def ensure_bucket(client, bucket_name):
-    if not client.bucket_exists(bucket_name):
-        client.make_bucket(bucket_name)
-
-
-def remove_object_if_exists(client, bucket_name, object_name):
-    try:
-        client.remove_object(bucket_name, object_name)
-    except S3Error as exc:
-        if exc.code not in {"NoSuchKey", "NoSuchObject"}:
-            raise
-
-
-def normalize_clickable_url(url: str) -> str:
-    """
-    Ensure URL is fully qualified (scheme + netloc), so UIs render it clickable.
-    """
-    if not url:
-        return url
-    parsed = urlparse(url)
-    if parsed.scheme and parsed.netloc:
-        return url
-    scheme = "https" if getattr(settings, "MINIO_USE_SSL", False) else "http"
-    endpoint = getattr(settings, "MINIO_ENDPOINT", "").strip().lstrip("/")
-    path = url if url.startswith("/") else f"/{url}"
-    if endpoint:
-        return f"{scheme}://{endpoint}{path}"
-    return f"{scheme}://{path.lstrip('/')}"
 
 class HomeAPIView(APIView):
     ''' 
@@ -88,7 +52,6 @@ class HomeAPIView(APIView):
         
         if user.role == CustomUser.Role.TEACHER:
             queryset = Course.objects.filter(teacher=user)
-            
             category = request.query_params.get('category')
             title = request.query_params.get('title')
             
@@ -96,13 +59,11 @@ class HomeAPIView(APIView):
                 queryset = queryset.filter(category_id=category)
             if title:
                 queryset = queryset.filter(title__icontains=title)
-            
             serializer = TeacherCourseSerializer(queryset, many=True)
             return Response(serializer.data, status=HTTP_200_OK)
             
         elif user.role == CustomUser.Role.STUDENT:
-            queryset = Course.objects.filter(status=Course.CourseStatus.PUBLISHED).select_related('teacher')
-            
+            queryset = Course.objects.filter(enrollments__student=user).select_related('teacher').distinct()
             category = request.query_params.get('category')
             title = request.query_params.get('title')
             
@@ -110,29 +71,12 @@ class HomeAPIView(APIView):
                 queryset = queryset.filter(category_id=category)
             if title:
                 queryset = queryset.filter(title__icontains=title)
-            
-            serializer = CourseSerializer(queryset, many=True, context={'request': request})
+            serializer = StudentCourseSerializer(queryset, many=True, context={'request': request})
             return Response(serializer.data, status=HTTP_200_OK)
+        
         return Response({"detail": "Invalid user role"}, status=HTTP_403_FORBIDDEN)
     
 
-class StudentDashboard(APIView):
-    ''' 
-    Returns all enrolled courses of a student.
-    Also each course contains basic info about itself,
-    URL for cover image, URL to teacher's profile 
-    who published the course, name and email, average rating.
-
-
-    '''
-    permission_classes = [IsAuthenticated]
-    def get(self, request):
-        user = request.user
-        queryset = Course.objects.filter(enrollments__student=user).select_related('teacher').distinct()
-        serializer = CourseSerializer(queryset, many=True, context={'request': request})
-        return Response(serializer.data, status=HTTP_200_OK)
-    
-    
 class CourseCatalog (ModelViewSet):
     ''' 
     Returns all published courses for Unuathenticated users. 
@@ -140,7 +84,7 @@ class CourseCatalog (ModelViewSet):
     Allows to search courses based on categories
     '''
     permission_classes = [IsAuthenticatedOrReadOnly]
-    serializer_class = CourseSerializer
+    serializer_class = StudentCourseSerializer
     http_method_names = ['get']  # read-only
 
     def get_queryset(self):

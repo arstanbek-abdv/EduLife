@@ -3,27 +3,25 @@ from apps.courses.models import Course,Module,Task
 from apps.courses.permissions.course_permissions import IsTeacher
 from django.shortcuts import get_object_or_404
 from apps.courses.serializers.course_serializers import (
-    CourseSerializer,
     ModuleSerializer,
-    TaskSerializer
+    TaskSerializer,
+    TeacherCourseSerializer,
+    StudentCourseSerializer
 )
 from rest_framework.views import APIView
+from rest_framework.viewsets import ModelViewSet
 from rest_framework.generics import CreateAPIView
 from rest_framework.response import Response
 from rest_framework import status
+from urllib.parse import urlparse
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import ValidationError,PermissionDenied
+from minio.error import S3Error
 
 from rest_framework.status import (
     HTTP_400_BAD_REQUEST,
     HTTP_200_OK,
     HTTP_502_BAD_GATEWAY,
-)
-from apps.courses.course_views import (
-    ensure_bucket, 
-    get_minio_client, 
-    remove_object_if_exists, 
-    normalize_clickable_url,
 )
 from django.conf import settings 
 from datetime import timedelta
@@ -32,9 +30,15 @@ import uuid
 import os 
 
 from edulife.settings import DATA_UPLOAD_MAX_MEMORY_SIZE
-from minio.error import S3Error
 
-class CreateCourseAPIView(CreateAPIView):
+from apps.courses.utils import (
+    get_minio_client,
+    ensure_bucket,
+    remove_object_if_exists,
+    normalize_clickable_url,
+)
+
+class CreateEditCourse(ModelViewSet):
     ''' 
     Only teachers can create courses. 
     Course includes brief description and essential info,
@@ -44,36 +48,47 @@ class CreateCourseAPIView(CreateAPIView):
     can consist of multiple tasks. Each task must have a file attached.
     '''
     permission_classes = [IsAuthenticated,IsTeacher]
-    serializer_class = CourseSerializer
+    serializer_class = TeacherCourseSerializer
+    
+    def get_queryset(self):
+        return Course.objects.filter(teacher=self.request.user)
+    
+    def perform_create(self, serializer):
+        return serializer.save(teacher=self.request.user)
+    
+    def perform_destroy(self, instance):
+        if instance.status == Course.CourseStatus.PUBLISHED:
+            raise PermissionDenied('Published courses cannot be deleted.')
+        instance.delete()
 
-    def create(self,request,*args):
-        teacher = self.request.user
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
 
-        serializer.save(teacher=teacher)
-        return Response(serializer.data, status=status.HTTP_201_CREATED )
-
-
-class CreateModuleAPIView(CreateAPIView):
+class CreateEditModule(ModelViewSet):
     ''' 
     A module cannot exist outside of a course, by its own.
     Therefore, each module must reference a course.
     '''
     permission_classes = [IsAuthenticated,IsTeacher]
     serializer_class = ModuleSerializer
-
-    def create(self, request, *args, **kwargs):
-        course_id = self.kwargs['course_id']
-        course = get_object_or_404(Course, id=course_id, teacher=self.request.user)
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        serializer.save(course=course)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    http_method_names = ['post','patch','delete']
     
+    def get_queryset(self):
+        course_id = self.kwargs['course_id']
+        modules = Module.objects.filter(course=course_id,
+        course__teacher=self.request.user)
+        return modules
+    
+    def perform_create(self, serializer):
+        course_id = self.kwargs['course_id']
+        course = get_object_or_404(Course, id=course_id)
+        return serializer.save(course=course)
 
-class CreateTaskAPIView(CreateAPIView):
+    def perform_destroy(self, instance):
+        if instance.course.status == Course.CourseStatus.PUBLISHED:
+            raise PermissionDenied('Modules of published courses cannot be deleted.')
+        instance.delete()
+
+
+class CreateEditTask(ModelViewSet):
     '''
     Likewise with modules course cannot exist by its own 
     outside of courses and modules, hence each task must referene 
@@ -81,17 +96,25 @@ class CreateTaskAPIView(CreateAPIView):
     '''
     permission_classes = [IsAuthenticated,IsTeacher]
     serializer_class = TaskSerializer
+    http_method_names = ['post','patch','delete']
 
-    def create(self,request,*args,**kwargs):
-        module_id = kwargs['module_id']
+    def get_queryset(self):
+        module_id = self.kwargs['module_id']
+        tasks = Task.objects.filter(module=module_id,
+        module__course__teacher=self.request.user)
+        return tasks 
+
+    def perform_create(self, serializer):
+        module_id = self.kwargs['module_id']
         module = get_object_or_404(Module,id=module_id)
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        return serializer.save(module=module)
 
-        serializer.save(module=module)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-    
-       
+    def perform_destroy(self, instance):
+        if instance.module.course.status == Course.CourseStatus.PUBLISHED:
+            raise PermissionDenied('Tasks of published courses cannot be deleted.')
+        instance.delete()
+
+
 class CourseCoverUpload(APIView):
     ''' 
     Uploads cover image of a course.
@@ -265,7 +288,30 @@ class PublishCourse(APIView):
         if tasks.filter(file_key__isnull=True).exists():
             cant_publish['file'] = "Each task must have a file!"
 
-        #TODO Псмотреть бест практисы по респонсам по типу: 
+        if cant_publish:
+            raise ValidationError(cant_publish)
+        else:
+            return course
+        
+    def patch(self, request, course_id, *args, **kwargs):
+        course = get_object_or_404(Course, id=course_id, teacher=request.user)
+        if course.status == Course.CourseStatus.PUBLISHED:
+            return Response(
+                {"detail": "Course is already published.", "status": course.status, "published_at": course.published_at},
+                status=HTTP_400_BAD_REQUEST,
+            )
+        course = self.get_course_and_validate(request, course_id)
+        course.status = Course.CourseStatus.PUBLISHED
+        course.published_at = timezone.now()
+        course.save(update_fields=["status", "published_at"])
+        course = Course.objects.select_related('teacher').get(pk=course.pk)
+        serializer = StudentCourseSerializer(course, context={'request': request})
+        return Response(
+            serializer.data,
+            status=HTTP_200_OK,
+        )
+    
+   #TODO Псмотреть бест практисы по респонсам по типу: 
         """
         {
             "message": "Task creation error",
@@ -278,26 +324,3 @@ class PublishCourse(APIView):
             ]
         }
         """
-
-        if cant_publish:
-            raise ValidationError(cant_publish)
-        else:
-            return course
-        
-    def post(self, request, course_id, *args, **kwargs):
-        course = get_object_or_404(Course, id=course_id, teacher=request.user)
-        if course.status == Course.CourseStatus.PUBLISHED:
-            return Response(
-                {"detail": "Course is already published.", "status": course.status, "published_at": course.published_at},
-                status=HTTP_400_BAD_REQUEST,
-            )
-        course = self.get_course_and_validate(request, course_id)
-        course.status = Course.CourseStatus.PUBLISHED
-        course.published_at = timezone.now()
-        course.save(update_fields=["status", "published_at"])
-        course = Course.objects.select_related('teacher').get(pk=course.pk)
-        serializer = CourseSerializer(course, context={'request': request})
-        return Response(
-            serializer.data,
-            status=HTTP_200_OK,
-        )
