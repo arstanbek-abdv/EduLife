@@ -4,7 +4,7 @@ from rest_framework.routers import DefaultRouter
 from apps.courses.course_views import (
     CourseCatalog, HomeAPIView,
     EnrollToCourseAPIView, UnenrollCourseAPIView,
-    TaskFileDownloadAPIView, ProgressCountAPIView,
+    TaskFileDownloadAPIView, CompleteTaskAPIView,
     
 )
 from apps.courses.course_creation import (
@@ -23,7 +23,7 @@ router.register(r'tasks', TaskViewSet, basename='task')
 urlpatterns = [
     path('', include(router.urls)),
     path('my-courses/', HomeAPIView.as_view()),
-    path('catalog/', CourseCatalog.as_view({'get': 'list'})),
+    path('catalog/', CourseCatalog.as_view({'get':'list'})),
     path('catalog/<int:course_id>/', CourseCatalog.as_view({'get':'retrieve'})),
     path('new-course/', CreateEditCourse.as_view({'post':'create'})),
     path('new-course/<int:pk>/', CreateEditCourse.as_view({'patch':'partial_update','delete':'destroy'})),
@@ -33,7 +33,7 @@ urlpatterns = [
     path('modules/<int:module_id>/tasks/<int:pk>/', CreateEditTask.as_view({'patch':'partial_update','delete':'destroy'})),
     path("tasks/<int:task_id>/upload/", TaskFileUpload.as_view()),
     path("tasks/<int:task_id>/file/", TaskFileDownloadAPIView.as_view()),
-    path('tasks/<int:task_id>/progress/', ProgressCountAPIView.as_view()),
+    path('tasks/<int:task_id>/complete/', CompleteTaskAPIView.as_view()),
     path("<int:course_id>/cover/", CourseCoverUpload.as_view()),
     path("<int:course_id>/publish/", PublishCourse.as_view()),
     path("<int:course_id>/enroll/", EnrollToCourseAPIView.as_view()),

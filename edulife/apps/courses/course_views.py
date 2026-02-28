@@ -12,23 +12,18 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from django.conf import settings
 from django.shortcuts import get_object_or_404
-from urllib.parse import urlparse
-from minio import Minio
-from minio.error import S3Error
-
 from apps.users.models import CustomUser
 from apps.courses.models import Course, Task, Enrollment, CompletedTask
-from apps.courses.permissions.course_permissions import  IsEnrolled
+from apps.courses.permissions.course_permissions import IsEnrolled
 from apps.courses.serializers.course_serializers import (
     TeacherCourseSerializer,
-    StudentCourseSerializer,
+    CatalogCourseSerializer,
     EnrollmentSerializer,
+    StudentCourseSerializer
 )
 
 from apps.courses.utils import (
     get_minio_client,
-    ensure_bucket,
-    remove_object_if_exists,
     normalize_clickable_url,
 )
 
@@ -84,7 +79,7 @@ class CourseCatalog (ModelViewSet):
     Allows to search courses based on categories
     '''
     permission_classes = [IsAuthenticatedOrReadOnly]
-    serializer_class = StudentCourseSerializer
+    serializer_class = CatalogCourseSerializer
     http_method_names = ['get']  # read-only
 
     def get_queryset(self):
@@ -177,24 +172,17 @@ class TaskFileDownloadAPIView(APIView):
             )
         return Response({"url": file_url}, status=HTTP_200_OK)
 
-class ProgressCountAPIView(APIView):
-    '''
-    Calculates the overall course progerss.
-    Course total = (completed tasks/all tasks of a course)*100
-    '''
+class CompleteTaskAPIView(APIView):
     permission_classes = [IsAuthenticated,IsEnrolled]
     def post (self, request, task_id):
         done_task = CompletedTask.objects
         student = request.user
         task = Task.objects.get(id=task_id)
         if done_task.filter(student=student,task=task_id).exists():
-            return Response('You already completed this task', status=HTTP_200_OK)
+            return Response({'detail':'You already completed this task'}, status=HTTP_200_OK)
         new_task = CompletedTask()
         new_task.task = task
         new_task.student = student
         new_task.save()
-        course = task.module.course
-        all_tasks_of_course = Task.objects.filter(module__course = course).count()
-        completed_tasks = CompletedTask.objects.filter(student=student,task__module__course = course).count()
-        progress = (completed_tasks/all_tasks_of_course) * 100
-        return Response({'progress':progress}, status=HTTP_200_OK)
+        return Response({'detail':'Task completed'}, status=HTTP_200_OK)
+        

@@ -1,4 +1,3 @@
-from apps.users.models import CustomUser
 from apps.courses.models import Course,Module,Task
 from apps.courses.permissions.course_permissions import IsTeacher
 from django.shortcuts import get_object_or_404
@@ -6,14 +5,11 @@ from apps.courses.serializers.course_serializers import (
     ModuleSerializer,
     TaskSerializer,
     TeacherCourseSerializer,
-    StudentCourseSerializer
+    CatalogCourseSerializer
 )
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
-from rest_framework.generics import CreateAPIView
 from rest_framework.response import Response
-from rest_framework import status
-from urllib.parse import urlparse
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ValidationError,PermissionDenied
 from minio.error import S3Error
@@ -22,6 +18,8 @@ from rest_framework.status import (
     HTTP_400_BAD_REQUEST,
     HTTP_200_OK,
     HTTP_502_BAD_GATEWAY,
+    HTTP_409_CONFLICT,
+    HTTP_204_NO_CONTENT
 )
 from django.conf import settings 
 from datetime import timedelta
@@ -76,22 +74,32 @@ class CreateEditModule(ModelViewSet):
         modules = Module.objects.filter(course=course_id,
         course__teacher=self.request.user)
         return modules
-    
+        
     def perform_create(self, serializer):
         course_id = self.kwargs['course_id']
         course = get_object_or_404(Course, id=course_id)
         return serializer.save(course=course)
-
-    def perform_destroy(self, instance):
+    
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
         if instance.course.status == Course.CourseStatus.PUBLISHED:
-            raise PermissionDenied('Modules of published courses cannot be deleted.')
+            return Response(
+                {"detail": "Modules of published courses cannot be deleted."},
+                status=HTTP_400_BAD_REQUEST
+            )
+        if instance.tasks.exists():
+            return Response(
+                {"detail": "Delete tasks first."},
+                status=HTTP_409_CONFLICT
+            )
+        
         instance.delete()
-
-
+        return Response(status=HTTP_204_NO_CONTENT)
+        
 class CreateEditTask(ModelViewSet):
     '''
     Likewise with modules course cannot exist by its own 
-    outside of courses and modules, hence each task must referene 
+    outside of courses and modules, hence each task must reference 
     a module.
     '''
     permission_classes = [IsAuthenticated,IsTeacher]
@@ -305,7 +313,7 @@ class PublishCourse(APIView):
         course.published_at = timezone.now()
         course.save(update_fields=["status", "published_at"])
         course = Course.objects.select_related('teacher').get(pk=course.pk)
-        serializer = StudentCourseSerializer(course, context={'request': request})
+        serializer = CatalogCourseSerializer(course, context={'request': request})
         return Response(
             serializer.data,
             status=HTTP_200_OK,
