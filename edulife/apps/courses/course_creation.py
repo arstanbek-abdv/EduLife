@@ -1,5 +1,5 @@
 from apps.courses.models import Course,Module,Task
-from apps.courses.permissions.course_permissions import IsTeacher
+from apps.courses.permissions.course_permissions import IsTeacher, IsTaskCourseTeacher
 from django.shortcuts import get_object_or_404
 from apps.courses.serializers.course_serializers import (
     ModuleSerializer,
@@ -11,8 +11,7 @@ from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.exceptions import ValidationError,PermissionDenied
-from minio.error import S3Error
+from rest_framework.exceptions import ValidationError, PermissionDenied
 
 from rest_framework.status import (
     HTTP_400_BAD_REQUEST,
@@ -21,20 +20,12 @@ from rest_framework.status import (
     HTTP_409_CONFLICT,
     HTTP_204_NO_CONTENT
 )
-from django.conf import settings 
-from datetime import timedelta
+from django.core.files.storage import default_storage
 from django.utils import timezone
-import uuid 
-import os 
+import uuid
+import os
 
 from edulife.settings import DATA_UPLOAD_MAX_MEMORY_SIZE
-
-from apps.courses.utils import (
-    get_minio_client,
-    ensure_bucket,
-    remove_object_if_exists,
-    normalize_clickable_url,
-)
 
 class CreateEditCourse(ModelViewSet):
     ''' 
@@ -143,33 +134,14 @@ class CourseCoverUpload(APIView):
         ext = os.path.splitext(uploaded.name)[1]
         file_key = f'course_covers/{course.id}/{uuid.uuid4().hex}{ext}'
 
-        client = get_minio_client()
         try:
-            ensure_bucket(client, settings.MINIO_BUCKET_NAME)
             if course.file_key:
-                remove_object_if_exists(
-                    client,
-                    settings.MINIO_BUCKET_NAME,
-                    course.file_key,
-                )
-            client.put_object(
-                bucket_name=settings.MINIO_BUCKET_NAME,
-                object_name=file_key,
-                data=uploaded.file,
-                length=uploaded.size,
-                content_type=uploaded.content_type,
-            )
-            file_url = client.presigned_get_object(
-                bucket_name=settings.MINIO_BUCKET_NAME,
-                object_name=file_key,
-                expires=timedelta(days=7),
-            )
-            file_url = normalize_clickable_url(file_url)
-        except S3Error as exc:
-            return Response(
-                {"file": f"MinIO error: {exc.code}"},
-                status=HTTP_502_BAD_GATEWAY,
-            )
+                try:
+                    default_storage.delete(course.file_key)
+                except Exception:
+                    pass
+            default_storage.save(file_key, uploaded)
+            file_url = default_storage.url(file_key)
         except Exception:
             return Response(
                 {"file": "Failed to upload file."},
@@ -190,12 +162,11 @@ class CourseCoverUpload(APIView):
 
 
 class TaskFileUpload(APIView):
-    ''' 
-    Only teacher can access this endpoint. Uploads a task file for a task. 
-    If task doesn't exist or the endpoint is accessed by third party
-    it returns Error 404.
     '''
-    permission_classes = [IsAuthenticated, IsTeacher]
+    Only the course teacher can upload a file for a task.
+    Uses IsTaskCourseTeacher so access is by ownership (task's course teacher), not only by role.
+    '''
+    permission_classes = [IsAuthenticated, IsTaskCourseTeacher]
 
     def owned_task(self, request, task_id):
         task = get_object_or_404(
@@ -215,35 +186,16 @@ class TaskFileUpload(APIView):
         file_key = f'tasks/{task.id}/{uuid.uuid4().hex}{ext}'
 
         if uploaded.size > DATA_UPLOAD_MAX_MEMORY_SIZE:
-            return Response({'file':'File too large (max 2 GB)'}, status=HTTP_400_BAD_REQUEST)
-        client = get_minio_client()
-        
+            return Response({'file': 'File too large (max 2 GB)'}, status=HTTP_400_BAD_REQUEST)
+
         try:
-            ensure_bucket(client, settings.MINIO_BUCKET_NAME)
             if task.file_key:
-                remove_object_if_exists(
-                    client,
-                    settings.MINIO_BUCKET_NAME,
-                    task.file_key,
-                )
-            client.put_object(
-                bucket_name=settings.MINIO_BUCKET_NAME,
-                object_name=file_key,
-                data=uploaded.file,
-                length=uploaded.size,
-                content_type=uploaded.content_type,
-            )
-            file_url = client.presigned_get_object(
-                bucket_name=settings.MINIO_BUCKET_NAME,
-                object_name=file_key,
-                expires=timedelta(days=7),
-            )
-            file_url = normalize_clickable_url(file_url)
-        except S3Error as exc:
-            return Response(
-                {"file": f"MinIO error: {exc.code}"},
-                status=HTTP_502_BAD_GATEWAY,
-            )
+                try:
+                    default_storage.delete(task.file_key)
+                except Exception:
+                    pass
+            default_storage.save(file_key, uploaded)
+            file_url = default_storage.url(file_key)
         except Exception:
             return Response(
                 {"file": "Failed to upload file."},

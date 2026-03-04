@@ -10,3 +10,5 @@ class MinioStorage(S3Boto3Storage):
     default_acl = None
     file_overwrite = False
     querystring_auth = True
+    # Signed URL lifetime in seconds (1 hour). Bucket must be created manually or via deploy script.
+    querystring_expire = 3600

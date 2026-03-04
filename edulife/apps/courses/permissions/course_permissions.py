@@ -4,10 +4,30 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from apps.users.models import CustomUser
 from apps.courses.models import Course, Task, Enrollment, Review
 
-class IsTeacher (BasePermission):
+class IsTeacher(BasePermission):
 
     def has_permission(self, request, view):
         return request.user.role == CustomUser.Role.TEACHER
+
+
+class IsTaskCourseTeacher(BasePermission):
+    """
+    Allows only the teacher who owns the task's course (for task file upload).
+    Uses actual ownership instead of the role field, so course owners can upload
+    even if role is misconfigured.
+    """
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        task_id = view.kwargs.get('task_id')
+        if not task_id:
+            return False
+        try:
+            task = Task.objects.select_related('module__course').get(id=task_id)
+            return task.module.course.teacher_id == request.user.pk
+        except Task.DoesNotExist:
+            return False
+
 
 class IsEnrolled(BasePermission):
     """

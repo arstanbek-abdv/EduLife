@@ -1,0 +1,112 @@
+# EduLife — Docker Compose для Swarm (docker stack deploy)
+# Локальный compose тоже работает: docker compose up -d
+#
+# Swarm: сначала соберите образ, затем деплой:
+#   docker build -t edulife-web:latest ./edulife
+#   docker stack deploy -c docker-compose.yml edulife
+#
+# Запуск из папки edulife:  docker compose up -d
+# Переменные подставляются из .env в этой же папке.
+# API: http://localhost:8000/api/courses/  и  http://localhost:8000/api/users/
+
+services:
+  web:
+    image: edulife-web:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB:-edulife_db}
+      POSTGRES_USER: ${POSTGRES_USER:-edulife}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-edulife_secret}
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin123}
+      MINIO_USE_SSL: "false"
+      MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-edulife}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-django-insecure-change-in-production}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,0.0.0.0}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-true}
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+      placement:
+        constraints:
+          - node.role == manager
+      update_config:
+        order: start-first
+        parallelism: 1
+        delay: 10s
+      rollback_config:
+        parallelism: 1
+        delay: 5s
+    depends_on:
+      - db
+      - minio
+    networks:
+      - edulife
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-edulife_db}
+      POSTGRES_USER: ${POSTGRES_USER:-edulife}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-edulife_secret}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U edulife -d edulife_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+      placement:
+        constraints:
+          - node.role == manager
+    networks:
+      - edulife
+
+  minio:
+    image: minio/minio:latest
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin123}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+      placement:
+        constraints:
+          - node.role == manager
+    networks:
+      - edulife
+
+networks:
+  edulife:
+    driver: overlay
+    attachable: true
+
+volumes:
+  postgres_data:
+  minio_data:

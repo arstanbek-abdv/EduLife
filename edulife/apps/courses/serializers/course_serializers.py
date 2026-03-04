@@ -1,13 +1,10 @@
 from rest_framework.serializers import ModelSerializer
 from rest_framework import serializers
-from datetime import timedelta
-from django.conf import settings
+from django.core.files.storage import default_storage
 from django.urls import reverse
-# using ORM lookups in validators instead of get_object_or_404
 
 from apps.courses.models import Course, Module, Task, Enrollment, Review, CompletedTask
 from apps.users.models import CustomUser
-from apps.courses.utils import get_minio_client, normalize_clickable_url
 
 class TeacherBasicSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField()
@@ -107,13 +104,7 @@ class TaskSerializer(ModelSerializer):
         if not obj.file_key:
             return None
         try:
-            client = get_minio_client()
-            file_url = client.presigned_get_object(
-                bucket_name=settings.MINIO_BUCKET_NAME,
-                object_name=obj.file_key,
-                expires=timedelta(hours=1),
-            )
-            return normalize_clickable_url(file_url)
+            return default_storage.url(obj.file_key)
         except Exception:
             return None
     
@@ -198,18 +189,12 @@ class TeacherCourseSerializer(ModelSerializer):
         if not obj.file_key:
             return None
         try:
-            client = get_minio_client()
-            file_url = client.presigned_get_object(
-                bucket_name=settings.MINIO_BUCKET_NAME,
-                object_name=obj.file_key,
-                expires=timedelta(hours=1),
-            )
-            return normalize_clickable_url(file_url)
+            return default_storage.url(obj.file_key)
         except Exception:
             return None
 
     def validate(self, attrs):
-        instance = self.instance 
+        instance = self.instance
         if instance and instance.status == Course.CourseStatus.PUBLISHED:
             blocked = {'language','category'}
             changed = blocked.intersection(attrs.keys())
@@ -251,13 +236,7 @@ class CatalogCourseSerializer(ModelSerializer):
         if not obj.file_key:
             return None
         try:
-            client = get_minio_client()
-            file_url = client.presigned_get_object(
-                bucket_name=settings.MINIO_BUCKET_NAME,
-                object_name=obj.file_key,
-                expires=timedelta(hours=1),
-            )
-            return normalize_clickable_url(file_url)
+            return default_storage.url(obj.file_key)
         except Exception:
             return None
 
@@ -284,17 +263,11 @@ class StudentCourseSerializer(ModelSerializer):
         if not obj.file_key:
             return None
         try:
-            client = get_minio_client()
-            file_url = client.presigned_get_object(
-                bucket_name=settings.MINIO_BUCKET_NAME,
-                object_name=obj.file_key,
-                expires=timedelta(hours=1),
-            )
-            return normalize_clickable_url(file_url)
+            return default_storage.url(obj.file_key)
         except Exception:
             return None
-    
-    def get_progress(self,obj):
+
+    def get_progress(self, obj):
         student = self.context['request'].user
         completed_tasks = CompletedTask.objects.filter(student=student,task__module__course=obj).count()
         all_tasks = Task.objects.filter(module__course=obj).count()

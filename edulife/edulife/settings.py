@@ -21,12 +21,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-=np7=d)vlk=gzn*vc483xbbim$2w28sohlx6m*oy0=8eqbq&qq'
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-=np7=d)vlk=gzn*vc483xbbim$2w28sohlx6m*oy0=8eqbq&qq")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DJANGO_DEBUG", "true").lower() in ("1", "true", "yes")
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
 # Application definition
 
@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     # Installed apps
+    'whitenoise.runserver_nostatic',
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
     'storages',
@@ -50,6 +51,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -91,14 +93,15 @@ JAZZMIN_SETTINGS = {
 }
 
 
+# Database: env in Docker/production (POSTGRES_*), else local defaults
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'edulife_db',
-        'USER': 'arstanbek',
-        'PASSWORD': 'Edforall#1',
-        'HOST': 'localhost',
-        'PORT': 5432,
+    "default": {
+        "ENGINE": os.getenv("DJANGO_DB_ENGINE", "django.db.backends.postgresql"),
+        "NAME": os.getenv("POSTGRES_DB", "edulife_db"),
+        "USER": os.getenv("POSTGRES_USER", "arstanbek"),
+        "PASSWORD": os.getenv("POSTGRES_PASSWORD", "Edforall#1"),
+        "HOST": os.getenv("POSTGRES_HOST", "localhost"),
+        "PORT": os.getenv("POSTGRES_PORT", "5432"),
     }
 }
 
@@ -191,6 +194,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 AUTH_USER_MODEL = 'users.CustomUser'
 

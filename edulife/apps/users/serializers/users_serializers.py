@@ -1,9 +1,6 @@
-from datetime import timedelta
-
-from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
+from django.core.files.storage import default_storage
 from rest_framework import serializers
-from minio import Minio
 
 from apps.users.models import CustomUser
 
@@ -21,27 +18,14 @@ class LookProfileSerializer(serializers.ModelSerializer):
 
     def get_profile_picture_url(self, obj):
         """
-        Return a temporary MinIO URL for the user's profile image, if it exists.
+        Return a signed storage URL for the user's profile image, if it exists.
         """
         if not obj.file_key:
             return None
-
-        client = Minio(
-            settings.MINIO_ENDPOINT,
-            access_key=settings.MINIO_ACCESS_KEY,
-            secret_key=settings.MINIO_SECRET_KEY,
-            secure=settings.MINIO_USE_SSL,
-        )
         try:
-            url = client.presigned_get_object(
-                bucket_name=settings.MINIO_BUCKET_NAME,
-                object_name=obj.file_key,
-                expires=timedelta(hours=24),
-            )
+            return default_storage.url(obj.file_key)
         except Exception:
-            # If MinIO is unavailable or key is invalid, just hide the URL.
             return None
-        return url
 
     class Meta:
         model = CustomUser

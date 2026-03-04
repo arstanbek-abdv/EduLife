@@ -1,4 +1,3 @@
-from datetime import timedelta
 from rest_framework.views import APIView
 from rest_framework.status import (
     HTTP_400_BAD_REQUEST,
@@ -10,7 +9,7 @@ from rest_framework.status import (
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
-from django.conf import settings
+from django.core.files.storage import default_storage
 from django.shortcuts import get_object_or_404
 from apps.users.models import CustomUser
 from apps.courses.models import Course, Task, Enrollment, CompletedTask
@@ -20,11 +19,6 @@ from apps.courses.serializers.course_serializers import (
     CatalogCourseSerializer,
     EnrollmentSerializer,
     StudentCourseSerializer
-)
-
-from apps.courses.utils import (
-    get_minio_client,
-    normalize_clickable_url,
 )
 
 
@@ -143,24 +137,24 @@ class UnenrollCourseAPIView(APIView):
 
 
 class TaskFileDownloadAPIView(APIView):
-    ''' 
+    '''
     Возвращает кратковременный URL файла задания курса.
     Доступ к URL имеют только студенты, записанные на курс.
     '''
-    permission_classes = [IsAuthenticated,IsEnrolled]
+    permission_classes = [IsAuthenticated, IsEnrolled]
+
     def get(self, request, task_id, *args, **kwargs):
         task = get_object_or_404(
             Task.objects.select_related("module__course"),
             id=task_id,
         )
-        client = get_minio_client()
-        try:
-            file_url = client.presigned_get_object(
-                bucket_name=settings.MINIO_BUCKET_NAME,
-                object_name=task.file_key,
-                expires=timedelta(minutes=15),
+        if not task.file_key:
+            return Response(
+                {"detail": "No file for this task."},
+                status=HTTP_400_BAD_REQUEST,
             )
-            file_url = normalize_clickable_url(file_url)
+        try:
+            file_url = default_storage.url(task.file_key)
         except Exception:
             return Response(
                 {"detail": "Failed to generate download URL."},

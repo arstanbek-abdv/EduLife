@@ -1,4 +1,4 @@
-from apps.courses.utils import get_minio_client, ensure_bucket, remove_object_if_exists, normalize_clickable_url
+from django.core.files.storage import default_storage
 
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.views import APIView
@@ -8,16 +8,13 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.exceptions import NotFound
 from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_200_OK, HTTP_502_BAD_GATEWAY
 from django.shortcuts import get_object_or_404
-from urllib.parse import urlparse
 
-from apps.users.serializers.users_serializers import EditProfileSerializer,LookProfileSerializer
+from apps.users.serializers.users_serializers import EditProfileSerializer, LookProfileSerializer
 from apps.users.serializers.users_serializers import RegisterUserSerializer
 from apps.users.models import CustomUser
 
-from minio.error import S3Error
-from datetime import timedelta
-from django.conf import settings
-import os, uuid 
+import os
+import uuid 
 
 class EditUserProfileAPIView(ModelViewSet):
     ''' 
@@ -77,8 +74,6 @@ class UploadUserProfile(APIView):
         uploaded = request.FILES.get('file')
         if not uploaded:
             return Response({'file': 'This field is required.'}, status=HTTP_400_BAD_REQUEST)
-        ext = os.path.splitext(uploaded.name)
-        file_key = f'profile_images/{uuid.uuid4().hex}{ext}'        
 
         # Basic size limit (adjust number to your needs)
         if uploaded.size > 8 * 1024 * 1024:  # 8 MB
@@ -91,48 +86,20 @@ class UploadUserProfile(APIView):
 
         file_key = f'profile_images/{uuid.uuid4().hex}{ext.lower()}'
 
-        client = get_minio_client()
-
         try:
-            ensure_bucket(client, settings.MINIO_BUCKET_NAME)
-
             old_key = user.file_key
 
-            # ─── UPLOAD FIRST ───
-            client.put_object(
-                bucket_name=settings.MINIO_BUCKET_NAME,
-                object_name=file_key,
-                data=uploaded.file,
-                length=uploaded.size,
-                content_type=uploaded.content_type or 'image/jpeg',
-            )
+            default_storage.save(file_key, uploaded)
 
-            # Only after successful upload we delete old file
             if old_key:
-                remove_object_if_exists(
-                    client,
-                    settings.MINIO_BUCKET_NAME,
-                    old_key
-                )
+                try:
+                    default_storage.delete(old_key)
+                except Exception:
+                    pass
 
-            # Generate fresh short-lived URL (7 days is too long for most cases)
-            file_url = client.presigned_get_object(
-                bucket_name=settings.MINIO_BUCKET_NAME,
-                object_name=file_key,
-                expires=timedelta(hours=24),   # ← changed – most common choice
-            )
+            file_url = default_storage.url(file_key)
 
-            # If normalize_clickable_url breaks presigned URLs → remove it
-            # file_url = normalize_clickable_url(file_url)   # ← comment out or delete
-
-        except S3Error as exc:
-            return Response(
-                {"file": f"Storage error: {exc.code}"},
-                status=HTTP_502_BAD_GATEWAY
-            )
-        except Exception as e:
-            # In production → log the real error
-            # logger.error(f"Avatar upload failed: {e}", exc_info=True)
+        except Exception:
             return Response(
                 {"file": "Failed to upload file"},
                 status=HTTP_502_BAD_GATEWAY
