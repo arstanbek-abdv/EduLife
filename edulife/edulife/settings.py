@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 from pathlib import Path
 from datetime import timedelta
 import os
+import dj_database_url
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -93,17 +94,19 @@ JAZZMIN_SETTINGS = {
 }
 
 
-# Database: env in Docker/production (POSTGRES_*), else local defaults
-DATABASES = {
-    "default": {
-        "ENGINE": os.getenv("DJANGO_DB_ENGINE", "django.db.backends.postgresql"),
-        "NAME": os.getenv("POSTGRES_DB", "edulife_db"),
-        "USER": os.getenv("POSTGRES_USER", "arstanbek"),
-        "PASSWORD": os.getenv("POSTGRES_PASSWORD", "Edforall#1"),
-        "HOST": os.getenv("POSTGRES_HOST", "localhost"),
-        "PORT": os.getenv("POSTGRES_PORT", "5432"),
-    }
+# Database: DATABASE_URL (Railway etc.) or POSTGRES_* env, else local defaults
+_db_default = {
+    "ENGINE": os.getenv("DJANGO_DB_ENGINE", "django.db.backends.postgresql"),
+    "NAME": os.getenv("POSTGRES_DB", "edulife_db"),
+    "USER": os.getenv("POSTGRES_USER", "arstanbek"),
+    "PASSWORD": os.getenv("POSTGRES_PASSWORD", "Edforall#1"),
+    "HOST": os.getenv("POSTGRES_HOST", "localhost"),
+    "PORT": os.getenv("POSTGRES_PORT", "5432"),
 }
+if os.getenv("DATABASE_URL"):
+    DATABASES = {"default": dj_database_url.config(default=os.getenv("DATABASE_URL"), conn_max_age=600)}
+else:
+    DATABASES = {"default": _db_default}
 
 
 REST_FRAMEWORK = {
