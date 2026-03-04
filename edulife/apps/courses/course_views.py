@@ -30,16 +30,14 @@ from apps.courses.utils import (
 
 class HomeAPIView(APIView):
     ''' 
-    Returns all published courses for students (must be authenticated)
-    and shows all teacher's courses draft/published.
-    Allows to search for courses based on their title and category.
+    Возвращает опубликованные курсы для студентов (требуется аутентификация)
+    и показывает все курсы преподавателя в черновике и опубликованные.
+    Позволяет искать курсы по названию и категории.
 
-    For students the endpoint returns published courses containing basic 
-    info about it, URL for cover image, URL to teacher's profile 
-    who published the course, name and email, average rating.
+    Для студентов: для каждого студента возвращает свои курсы, прогресс курса, обложка
 
-    Teachers see all their courses/draft and published. average rating and enrollment count
-    for published courses.
+    Преподаватели видят все свои курсы (черновики и опубликованные),
+    средний рейтинг и количество записей для опубликованных курсов.
     '''
     permission_classes = [IsAuthenticated]
     def get(self, request):
@@ -58,7 +56,7 @@ class HomeAPIView(APIView):
             return Response(serializer.data, status=HTTP_200_OK)
             
         elif user.role == CustomUser.Role.STUDENT:
-            queryset = Course.objects.filter(enrollments__student=user).select_related('teacher').distinct()
+            queryset = Course.objects.filter(courses__student=user).select_related('teacher').distinct()
             category = request.query_params.get('category')
             title = request.query_params.get('title')
             
@@ -74,9 +72,9 @@ class HomeAPIView(APIView):
 
 class CourseCatalog (ModelViewSet):
     ''' 
-    Returns all published courses for Unuathenticated users. 
-    Passing course_id as query param allows to view a particular course.
-    Allows to search courses based on categories
+    Возвращает все опубликованные курсы для неаутентифицированных пользователей.
+    Передача course_id в качестве параметра запроса позволяет просмотреть конкретный курс.
+    Позволяет искать курсы по категориям.
     '''
     permission_classes = [IsAuthenticatedOrReadOnly]
     serializer_class = CatalogCourseSerializer
@@ -99,9 +97,8 @@ class CourseCatalog (ModelViewSet):
 
 class EnrollToCourseAPIView(APIView):
     ''' 
-    This endpoint creates new enrollment record for a student and a course.
-    If the student is already enrolled in a course, the endpoint will return 
-    according message.
+    Создаёт запись о записи студента на курс.
+    Если студент уже записан на курс, возвращается соответствующее сообщение.
     '''
     permission_classes = [IsAuthenticated]
     def post(self, request, course_id, *args, **kwargs):
@@ -134,7 +131,7 @@ class EnrollToCourseAPIView(APIView):
 
 class UnenrollCourseAPIView(APIView):
     ''' 
-    Changes status field of enrollment record of a student and a course.
+    Изменяет статус записи студента на курс (отмена записи).
     '''
     permission_classes = [IsAuthenticated]
     def put(self,request,course_id,*args,**kwargs):
@@ -147,9 +144,8 @@ class UnenrollCourseAPIView(APIView):
 
 class TaskFileDownloadAPIView(APIView):
     ''' 
-    Returns a short-lived URL of a task file which 
-    belongs to the course. Only enrolled students for 
-    the course can access this URL.
+    Возвращает кратковременный URL файла задания курса.
+    Доступ к URL имеют только студенты, записанные на курс.
     '''
     permission_classes = [IsAuthenticated,IsEnrolled]
     def get(self, request, task_id, *args, **kwargs):
@@ -173,6 +169,9 @@ class TaskFileDownloadAPIView(APIView):
         return Response({"url": file_url}, status=HTTP_200_OK)
 
 class CompleteTaskAPIView(APIView):
+    ''' 
+    Отмечает задание как выполненное студентом.
+    '''
     permission_classes = [IsAuthenticated,IsEnrolled]
     def post (self, request, task_id):
         done_task = CompletedTask.objects

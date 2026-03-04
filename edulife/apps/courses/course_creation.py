@@ -38,12 +38,12 @@ from apps.courses.utils import (
 
 class CreateEditCourse(ModelViewSet):
     ''' 
-    Only teachers can create courses. 
-    Course includes brief description and essential info,
-    created coures are draft by default.
-    Only admin and teachers can edit course drafts.
-    The course can comprise many modules and modules 
-    can consist of multiple tasks. Each task must have a file attached.
+    Только преподаватели могут создавать курсы.
+    Курс включает краткое описание и основную информацию,
+    созданные курсы по умолчанию в черновике.
+    Только администратор и преподаватели могут редактировать черновики курсов.
+    Курс может содержать несколько модулей, модуль — несколько заданий.
+    Каждое задание должно содержать прикреплённый файл.
     '''
     permission_classes = [IsAuthenticated,IsTeacher]
     serializer_class = TeacherCourseSerializer
@@ -62,8 +62,8 @@ class CreateEditCourse(ModelViewSet):
 
 class CreateEditModule(ModelViewSet):
     ''' 
-    A module cannot exist outside of a course, by its own.
-    Therefore, each module must reference a course.
+    Модуль не может существовать отдельно от курса.
+    Каждый модуль должен ссылаться на курс.
     '''
     permission_classes = [IsAuthenticated,IsTeacher]
     serializer_class = ModuleSerializer
@@ -98,9 +98,8 @@ class CreateEditModule(ModelViewSet):
         
 class CreateEditTask(ModelViewSet):
     '''
-    Likewise with modules course cannot exist by its own 
-    outside of courses and modules, hence each task must reference 
-    a module.
+    Так же, как модуль не может существовать без курса,
+    задание не может существовать без модуля — каждое задание должно ссылаться на модуль.
     '''
     permission_classes = [IsAuthenticated,IsTeacher]
     serializer_class = TaskSerializer
@@ -125,10 +124,9 @@ class CreateEditTask(ModelViewSet):
 
 class CourseCoverUpload(APIView):
     ''' 
-    Uploads cover image of a course.
-    If course doesn't exist or the endpoint accessed
-    by third party returns Error 404.
-    Returns a URL for viewing the image.
+    Загрузка обложки курса.
+    Если курс не найден или endpoint вызван посторонним, возвращается ошибка 404.
+    Возвращает URL для просмотра изображения.
     '''
     permission_classes = [IsAuthenticated, IsTeacher]
 
@@ -267,15 +265,12 @@ class TaskFileUpload(APIView):
 
 class PublishCourse(APIView):
     ''' 
-    Before publishing the course and making it available for students 
-    to see and enroll it validates the course integrity.
-    Every course must have a cover image, at least one module. 
-    Each module must have at least one task, and a task must must 
-    have a file. If the course doesn't meet the requirements it returns 
-    the error message containing why it couldn't be published.
-    Example:
-        cover: Course cannot be published without a cover!
-    If the course doesn't exist it returns Error 404
+    Перед публикацией курса проверяется его целостность.
+    Курс должен содержать: обложку, минимум один модуль.
+    Каждый модуль — минимум одно задание с прикреплённым файлом.
+    При несоответствии требованиям возвращается сообщение об ошибке.
+    Пример: cover: Курс не может быть опубликован без обложки!
+    Если курс не найден, возвращается ошибка 404.
     '''
     permission_classes = [IsAuthenticated, IsTeacher]
 

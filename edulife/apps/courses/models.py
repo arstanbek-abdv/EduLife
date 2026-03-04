@@ -24,7 +24,9 @@ class Category(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.name} {self.slug} {self.id}"
+        return f"{self.name} {self.slug}"
+    
+
     
 
 class Course(models.Model):
@@ -32,7 +34,7 @@ class Course(models.Model):
         PUBLISHED = 'published', 'Published'
         DRAFT = 'draft', 'Draft'
 
-    title = models.CharField(max_length=200, unique=True, verbose_name='')
+    title = models.CharField(max_length=200, unique=True)
     description = models.TextField()
     short_description = models.TextField()
     language = models.CharField(max_length=20)
@@ -75,7 +77,7 @@ class Module (models.Model):
         on_delete=models.PROTECT,
         related_name='modules'
     )
-    title = models.CharField(max_length=255, unique=True)
+    title = models.CharField(max_length=255)
     description = models.TextField()
     order = models.PositiveIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -98,7 +100,7 @@ class Task (models.Model):
     class TaskType (models.TextChoices):
         DOCUMENT = 'document', 'Document'
         VIDEO = 'video', 'Video'
-    title = models.CharField(max_length=200,unique=True)
+    title = models.CharField(max_length=200)
     description = models.TextField()
     module = models.ForeignKey(
         Module, 
@@ -131,13 +133,13 @@ class Task (models.Model):
 class CompletedTask (models.Model):
     student = models.ForeignKey(
         CustomUser,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         limit_choices_to={'role':CustomUser.Role.STUDENT},
         related_name='students'
     )
     task = models.ForeignKey(
         Task,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name='tasks'
     )
     completed_at = models.DateTimeField(auto_now_add=True)
@@ -153,17 +155,16 @@ class CompletedTask (models.Model):
         #TODO нету __str__ метода
 
 
+
 class Review (models.Model):
-    student = models.ForeignKey(
+    student = models.ForeignKey( #TODO related name where bratha
         CustomUser,
         limit_choices_to={'role':CustomUser.Role.STUDENT},
-        on_delete=models.CASCADE,
-        related_name='reviews'
+        on_delete=models.CASCADE
     )
     course = models.ForeignKey(
         Course,
-        on_delete=models.CASCADE,
-        related_name='reviews'
+        on_delete=models.CASCADE
     ) 
     rating = models.PositiveSmallIntegerField(
         validators=[MinValueValidator(1), 
@@ -203,12 +204,13 @@ class Enrollment (models.Model):
         CustomUser,
         on_delete=models.PROTECT,
         limit_choices_to={'role': CustomUser.Role.STUDENT},
-        related_name='student_enrollments',
+        related_name='enrollments',
     )
+
     course = models.ForeignKey(
         Course,
         on_delete=models.PROTECT,
-        related_name='enrollments',
+        related_name='courses',
     )
 
     class Meta:

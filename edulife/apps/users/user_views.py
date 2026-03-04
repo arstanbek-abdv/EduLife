@@ -21,7 +21,7 @@ import os, uuid
 
 class EditUserProfileAPIView(ModelViewSet):
     ''' 
-    Allows users to edit their own profile.
+    Позволяет пользователям редактировать свой профиль.
     '''
     queryset = CustomUser.objects.all()
     serializer_class = EditProfileSerializer
@@ -33,7 +33,7 @@ class EditUserProfileAPIView(ModelViewSet):
 
 class LookUserProfileAPIView(ModelViewSet):
     '''
-    Allows users to view their own profile
+    Позволяет пользователям просматривать свой профиль.
     '''
     queryset = CustomUser.objects.all()
     serializer_class = LookProfileSerializer
@@ -45,7 +45,7 @@ class LookUserProfileAPIView(ModelViewSet):
 
 
 class TeacherPublicProfileAPIView(RetrieveAPIView):
-    """Public profile for teachers; students can view by teacher id."""
+    """Публичный профиль преподавателя; студенты могут просматривать по ID преподавателя."""
     permission_classes = [IsAuthenticated]
     serializer_class = LookProfileSerializer
 
@@ -58,16 +58,16 @@ class TeacherPublicProfileAPIView(RetrieveAPIView):
 
 class RegisterUserAPIView(CreateAPIView): 
     ''' 
-    For registration. Required fields: first name,
-    last name, username, email, password
+    Регистрация пользователя. Обязательные поля: имя, фамилия,
+    имя пользователя, email, пароль.
     '''
     permission_classes = [AllowAny]
     serializer_class = RegisterUserSerializer
 
 class UploadUserProfile(APIView):
     ''' 
-    For uploading user profile.
-    Max size 8 mb.
+    Загрузка фото профиля пользователя.
+    Максимальный размер 8 МБ.
     '''
     permission_classes = [IsAuthenticated]
     def patch (self,request):

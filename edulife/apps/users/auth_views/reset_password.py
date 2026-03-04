@@ -7,6 +7,9 @@ from rest_framework import status
 from rest_framework.response import Response
 
 class ResetPasswordAPIView(APIView):
+    '''
+    Сброс пароля по токену из письма.
+    '''
     def post(self, request, token):
         password = request.data.get("password")
         if not password:

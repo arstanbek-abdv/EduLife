@@ -12,6 +12,9 @@ from django.utils.html import strip_tags
 
 
 class PasswordResetRequestAPIView(APIView):
+    '''
+    Запрос на сброс пароля. Отправляет письмо с ссылкой на сброс на указанный email.
+    '''
     permission_classes = (AllowAny, )
 
     def post(self, request):

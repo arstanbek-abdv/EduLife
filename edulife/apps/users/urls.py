@@ -6,6 +6,7 @@ from apps.users.user_views import (
     LookUserProfileAPIView,
     RegisterUserAPIView,
     TeacherPublicProfileAPIView,
+    UploadUserProfile,
 )
 from rest_framework_simplejwt import views as jwt_views
 
@@ -15,6 +16,7 @@ urlpatterns = [
     path('forgot-password/', forgot_password.PasswordResetRequestAPIView.as_view(), name='forgot_password'),
     path('reset-password/<str:token>/', reset_password.ResetPasswordAPIView.as_view(), name='reset_password'),
     path('edit-profile/', EditUserProfileAPIView.as_view({'get': 'retrieve', 'patch': 'partial_update'}), name='edit_profile'),
+    path('profile-image/', UploadUserProfile.as_view(), name='upload_profile_image'),
     path('my-profile/', LookUserProfileAPIView.as_view({'get': 'retrieve'}), name='my_profile'),
     path('teacher-profiles/<int:pk>/', TeacherPublicProfileAPIView.as_view(), name='teacher_public_profile'),
     path('register/', RegisterUserAPIView.as_view(), name='register'),

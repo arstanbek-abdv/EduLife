@@ -7,13 +7,13 @@ from apps.courses.permissions.course_permissions import IsEnrolled
 
 class ModuleViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    ViewSet for listing and retrieving modules.
+    ViewSet для получения списка и деталей модулей.
     
-    - list: Get all modules (filter by ?course_id=X)
-    - retrieve: Get a specific module by ID
+    - list: Получить все модули (фильтр: ?course_id=X)
+    - retrieve: Получить модуль по ID
     
-    Filtering:
-    - ?course_id=X - filter modules by course
+    Фильтрация:
+    - ?course_id=X — фильтр модулей по курсу
     """
     serializer_class = ModuleSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
@@ -30,14 +30,14 @@ class ModuleViewSet(viewsets.ReadOnlyModelViewSet):
 
 class TaskViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    ViewSet for listing and retrieving tasks.
+    ViewSet для получения списка и деталей заданий.
     
-    - list: Get all tasks (filter by ?module_id=X or ?course_id=X)
-    - retrieve: Get a specific task by ID
+    - list: Получить все задания (фильтр: ?module_id=X или ?course_id=X)
+    - retrieve: Получить задание по ID
     
-    Filtering:
-    - ?module_id=X - filter tasks by module
-    - ?course_id=X - filter tasks by course (via module)
+    Фильтрация:
+    - ?module_id=X — фильтр заданий по модулю
+    - ?course_id=X — фильтр заданий по курсу (через модуль)
     """
     serializer_class = TaskSerializer
     permission_classes = [IsAuthenticatedOrReadOnly,IsEnrolled]

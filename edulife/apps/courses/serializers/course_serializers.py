@@ -86,6 +86,11 @@ class ReviewSerializer(ModelSerializer):
                 raise serializers.ValidationError(
                     "You have already reviewed this course."
                 )
+        # Block edit after course publication
+        if self.instance and self.instance.course.status == Course.CourseStatus.PUBLISHED:
+            raise serializers.ValidationError(
+                "Reviews cannot be edited after course publication."
+            )
         
         return attrs
 
@@ -205,7 +210,7 @@ class TeacherCourseSerializer(ModelSerializer):
 
     def validate(self, attrs):
         instance = self.instance 
-        if instance and instance == Course.CourseStatus.PUBLISHED:
+        if instance and instance.status == Course.CourseStatus.PUBLISHED:
             blocked = {'language','category'}
             changed = blocked.intersection(attrs.keys())
             if changed:
