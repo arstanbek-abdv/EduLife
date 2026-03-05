@@ -60,10 +60,13 @@ docker compose up -d
 1. [Render Dashboard](https://dashboard.render.com) → **New** → **Web Service** (или **Blueprint**), подключи репозиторий.
 2. У сервиса укажи **Root Directory**: `edulife`. Сборка и старт будут из этой папки.
 3. Добавь **PostgreSQL** в проект, в настройках веб-сервиса пропиши **`DATABASE_URL`** (Internal Database URL из базы).
-4. В **Environment** задай:
+4. В **Environment** задай переменные (чек-лист: `edulife/.env.deploy.example`):
    - `DJANGO_SECRET_KEY` — длинная случайная строка
-   - `DJANGO_ALLOWED_HOSTS` — `.onrender.com` (подойдёт любой URL вида `*-xxx.onrender.com`) или точный хост, например `edulife-abc12.onrender.com`
-   - при необходимости MinIO и SMTP — по образцу из `edulife/.env.example`
+   - `DJANGO_DEBUG` — `false`
+   - `DJANGO_ALLOWED_HOSTS` — `.onrender.com` (или точный хост)
+   - `DATABASE_URL` — Internal Database URL из созданной в Render PostgreSQL
+   - **`CORS_ALLOWED_ORIGINS`** — URL фронта (через запятую, без пробелов), например `https://edulife-front.vercel.app`
+   - при необходимости MinIO и SMTP — см. `edulife/.env.example`
 
 Приложение использует `DATABASE_URL`, WhiteNoise и порт из `PORT`.
 

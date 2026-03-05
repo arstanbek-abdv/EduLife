@@ -15,4 +15,5 @@ services:
       - key: PYTHON_VERSION
         value: "3.12.8"
       # В Render Dashboard (Environment) обязательно задай:
-      # DJANGO_SECRET_KEY, DJANGO_ALLOWED_HOSTS=.onrender.com, DATABASE_URL (из PostgreSQL)
+      # DJANGO_SECRET_KEY, DJANGO_ALLOWED_HOSTS=.onrender.com, DATABASE_URL (из PostgreSQL),
+      # CORS_ALLOWED_ORIGINS=https://твой-фронт.vercel.app (URL фронта для CORS)

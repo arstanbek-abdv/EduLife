@@ -1,14 +1,3 @@
-# EduLife — Docker Compose для Swarm (docker stack deploy)
-# Локальный compose тоже работает: docker compose up -d
-#
-# Swarm: сначала соберите образ, затем деплой:
-#   docker build -t edulife-web:latest ./edulife
-#   docker stack deploy -c docker-compose.yml edulife
-#
-# Запуск из папки edulife:  docker compose up -d
-# Переменные подставляются из .env в этой же папке.
-# API: http://localhost:8000/api/courses/  и  http://localhost:8000/api/users/
-
 services:
   web:
     image: edulife-web:latest

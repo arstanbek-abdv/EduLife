@@ -1,0 +1,3 @@
+.gitingore 
+.env.*
+!.env.example

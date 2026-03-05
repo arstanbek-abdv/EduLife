@@ -22,12 +22,27 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-=np7=d)vlk=gzn*vc483xbbim$2w28sohlx6m*oy0=8eqbq&qq")
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DJANGO_DEBUG", "true").lower() in ("1", "true", "yes")
 
-ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+ALLOWED_HOSTS = [h.strip() for h in os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")]
+
+# CORS: с каких origin разрешены запросы к API (фронт на другом порту/домене)
+# Через запятую, без пробелов после запятой: http://localhost:5173,https://my-app.vercel.app
+_CORS_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "").strip()
+if _CORS_ORIGINS:
+    CORS_ALLOWED_ORIGINS = [o.strip() for o in _CORS_ORIGINS.split(",") if o.strip()]
+else:
+    # По умолчанию — типичные адреса локального фронта (Vite, CRA и т.д.)
+    CORS_ALLOWED_ORIGINS = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+    ]
+CORS_ALLOW_CREDENTIALS = True
 
 # Application definition
 
@@ -45,6 +60,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'storages',
     'drf_yasg',
+    'corsheaders',
     # My apps
     'apps.users',
     'apps.courses',
@@ -53,6 +69,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -96,12 +113,12 @@ JAZZMIN_SETTINGS = {
 
 # Database: DATABASE_URL (Railway etc.) or POSTGRES_* env, else local defaults
 _db_default = {
-    "ENGINE": os.getenv("DJANGO_DB_ENGINE", "django.db.backends.postgresql"),
-    "NAME": os.getenv("POSTGRES_DB", "edulife_db"),
-    "USER": os.getenv("POSTGRES_USER", "arstanbek"),
-    "PASSWORD": os.getenv("POSTGRES_PASSWORD", "Edforall#1"),
-    "HOST": os.getenv("POSTGRES_HOST", "localhost"),
-    "PORT": os.getenv("POSTGRES_PORT", "5432"),
+    "ENGINE": os.getenv("DJANGO_DB_ENGINE"),
+    "NAME": os.getenv("POSTGRES_DB"),
+    "USER": os.getenv("POSTGRES_USER"),
+    "PASSWORD": os.getenv("POSTGRES_PASSWORD"),
+    "HOST": os.getenv("POSTGRES_HOST"),
+    "PORT": os.getenv("POSTGRES_PORT"),
 }
 if os.getenv("DATABASE_URL"):
     DATABASES = {"default": dj_database_url.config(default=os.getenv("DATABASE_URL"), conn_max_age=600)}
@@ -118,8 +135,8 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=15),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=79),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
