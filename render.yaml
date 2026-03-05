@@ -1,0 +1,16 @@
+# Render Blueprint: деплой EduLife (Django)
+# Документация: https://docs.render.com/blueprint-spec
+
+services:
+  - type: web
+    name: edulife
+    runtime: python
+    rootDir: edulife
+    buildCommand: pip install -r requirements.txt
+    startCommand: ./start.sh
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      # Остальные переменные задай в Render Dashboard (Environment):
+      # DJANGO_SECRET_KEY, DJANGO_ALLOWED_HOSTS (*.onrender.com или твой домен),
+      # DATABASE_URL — скопируй из созданной в Render PostgreSQL базы
