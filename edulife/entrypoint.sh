@@ -21,5 +21,8 @@ echo "Running migrations..."
 python manage.py migrate --noinput
 echo "Collecting static files..."
 python manage.py collectstatic --noinput --clear || true
-echo "Starting gunicorn..."
-exec gunicorn --bind 0.0.0.0:8000 --workers 2 --threads 2 edulife.wsgi:application
+# Render provides PORT; fail fast if missing
+: \"\${PORT:?PORT is not set}\"
+
+echo "Starting gunicorn on port $PORT..."
+exec gunicorn --bind 0.0.0.0:$PORT --workers 2 --threads 2 edulife.wsgi:application
