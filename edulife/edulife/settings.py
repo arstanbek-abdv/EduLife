@@ -151,15 +151,16 @@ MINIO_ENDPOINT_URL = os.getenv(
 
 
 SWAGGER_SETTINGS = {
-    'USE_SESSION_AUTH': False,  # disables Django login auth
+    'USE_SESSION_AUTH': False,
     'SECURITY_DEFINITIONS': {
         'Bearer': {
             'type': 'apiKey',
             'name': 'Authorization',
             'in': 'header',
-            'description': 'JWT Authorization header. Example: Bearer <access_token>',
+            'description': 'Введите только access token (без слова Bearer). В реальных запросах отправляйте заголовок: Authorization: Bearer <access_token>',
         }
-    }
+    },
+    'SECURITY_REQUIREMENTS': [{'Bearer': []}],
 }
 
 # Password validation

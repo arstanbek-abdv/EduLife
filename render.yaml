@@ -1,5 +1,8 @@
 # Render Blueprint: деплой EduLife (Django)
 # Документация: https://docs.render.com/blueprint-spec
+#
+# После деплоя URL сервиса будет вида: https://edulife.onrender.com (или с суффиксом).
+# API: https://<твой-url>/api/  |  Swagger: https://<твой-url>/swagger/  |  ReDoc: https://<твой-url>/redoc/
 
 services:
   - type: web
@@ -11,6 +14,5 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.8"
-      # Остальные переменные задай в Render Dashboard (Environment):
-      # DJANGO_SECRET_KEY, DJANGO_ALLOWED_HOSTS (*.onrender.com или твой домен),
-      # DATABASE_URL — скопируй из созданной в Render PostgreSQL базы
+      # В Render Dashboard (Environment) обязательно задай:
+      # DJANGO_SECRET_KEY, DJANGO_ALLOWED_HOSTS=.onrender.com, DATABASE_URL (из PostgreSQL)

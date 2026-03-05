@@ -27,14 +27,33 @@ from django.urls import path, include
 from rest_framework_simplejwt import views as jwt_views
 
 
+API_DESCRIPTION = """
+## Интеграция для фронтенда
+
+**Базовый URL:** все эндпоинты под префиксом `/api/` (пользователи: `/api/users/`, курсы: `/api/courses/`).
+
+**Аутентификация:**
+1. `POST /api/users/login/` — тело `{"username": "...", "password": "..."}` → в ответе `access` и `refresh`.
+2. В каждый запрос (кроме login, register, forgot-password, catalog без авторизации) добавляйте заголовок:  
+   `Authorization: Bearer <access>`
+3. При истечении access (401) вызовите `POST /api/token/refresh/` с телом `{"refresh": "<refresh_token>"}` → новый `access`.
+4. Выход: `POST /api/users/logout/` с телом `{"refresh": "<refresh_token>"}` (токен будет в чёрном списке).
+
+**Пагинация:** списки возвращают объекты с полями `count`, `next`, `previous`, `results` (размер страницы по умолчанию: 20).
+
+**Загрузка файлов:** используйте `multipart/form-data`, поле файла — `file` (аватар, обложка курса, файл задания).
+
+**Документация:** Swagger UI — `/swagger/`, ReDoc — `/redoc/`. В Swagger нажмите «Authorize» и вставьте access token (без слова Bearer).  
+Подробное руководство для фронтенда: репозиторий → `docs/API.md`.
+"""
 schema_view = get_schema_view(
-   openapi.Info(
-      title="Your API",
-      default_version='v1',
-      description="API documentation",
-   ),
-   public=True,
-   permission_classes=[permissions.AllowAny],
+    openapi.Info(
+        title="EduLife API",
+        default_version="v1",
+        description=API_DESCRIPTION,
+    ),
+    public=True,
+    permission_classes=[permissions.AllowAny],
 )
 
 urlpatterns = [
