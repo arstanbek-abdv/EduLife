@@ -60,7 +60,7 @@ urlpatterns = [
     path('api/admin/', admin.site.urls),
     path('api/token/refresh/', jwt_views.TokenRefreshView.as_view(), name='token_refresh'),
     path('api/users/', include('apps.users.urls')), # users/urls
-    path('api/courses/',include('apps.courses.urls')),
+    path('api/edulife/',include('apps.courses.urls')),
 
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0)),
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0)),
