@@ -3,8 +3,13 @@ from rest_framework import serializers
 from django.core.files.storage import default_storage
 from django.urls import reverse
 
-from apps.courses.models import Course, Module, Task, Enrollment, Review, CompletedTask
+from apps.courses.models import Course, Module, Task, Enrollment, Review, CompletedTask, Category
 from apps.users.models import CustomUser
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ['id', 'name', 'slug']
+        read_only_fields = ['id', 'slug']
 
 class TeacherBasicSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField()

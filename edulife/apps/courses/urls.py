@@ -5,7 +5,7 @@ from apps.courses.course_views import (
     CourseCatalog, HomeAPIView,
     EnrollToCourseAPIView, UnenrollCourseAPIView,
     TaskFileDownloadAPIView, CompleteTaskAPIView,
-    
+    CategoriesListAPIView,
 )
 from apps.courses.course_creation import (
     CreateEditCourse, CreateEditModule,
@@ -22,6 +22,7 @@ router.register(r'tasks', TaskViewSet, basename='task')
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('categories/', CategoriesListAPIView.as_view()),
     path('my-courses/', HomeAPIView.as_view()),
     path('catalog/', CourseCatalog.as_view({'get':'list'})),
     path('catalog/<int:course_id>/', CourseCatalog.as_view({'get':'retrieve'})),

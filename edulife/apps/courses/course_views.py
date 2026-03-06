@@ -12,14 +12,28 @@ from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnl
 from django.core.files.storage import default_storage
 from django.shortcuts import get_object_or_404
 from apps.users.models import CustomUser
-from apps.courses.models import Course, Task, Enrollment, CompletedTask
+from apps.courses.models import Course, Task, Enrollment, CompletedTask, Category
 from apps.courses.permissions.course_permissions import IsEnrolled
 from apps.courses.serializers.course_serializers import (
     TeacherCourseSerializer,
     CatalogCourseSerializer,
     EnrollmentSerializer,
-    StudentCourseSerializer
+    StudentCourseSerializer,
+    CategorySerializer
 )
+
+
+class CategoriesListAPIView(APIView):
+    '''
+    Returns all available categories for teachers to select when creating/editing a course.
+    Public users can view categories for filtering in the catalog.
+    '''
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    
+    def get(self, request):
+        categories = Category.objects.all()
+        serializer = CategorySerializer(categories, many=True)
+        return Response(serializer.data, status=HTTP_200_OK)
 
 
 class HomeAPIView(APIView):
@@ -37,7 +51,7 @@ class HomeAPIView(APIView):
     def get(self, request):
         user = request.user
         
-        if user.role == CustomUser.Role.TEACHER:
+        if user.role == CustomUser.Role.TEACHER or user.role == CustomUser.Role.ADMIN:
             queryset = Course.objects.filter(teacher=user)
             category = request.query_params.get('category')
             title = request.query_params.get('title')

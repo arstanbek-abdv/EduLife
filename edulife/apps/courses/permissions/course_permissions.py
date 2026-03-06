@@ -4,10 +4,26 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from apps.users.models import CustomUser
 from apps.courses.models import Course, Task, Enrollment, Review
 
+
+class IsAdmin (BasePermission):
+    def has_permission(self,request,view):
+        return request.user.role == CustomUser.Role.ADMIN
+
+
 class IsTeacher(BasePermission):
 
     def has_permission(self, request, view):
         return request.user.role == CustomUser.Role.TEACHER
+
+
+class IsTeacherOrAdmin(BasePermission):
+    '''
+    Allows access to teachers or admins (OR logic).
+    Teachers can only manage their own courses.
+    Admins can manage all courses.
+    '''
+    def has_permission(self, request, view):
+        return request.user.role in [CustomUser.Role.TEACHER, CustomUser.Role.ADMIN]
 
 
 class IsTaskCourseTeacher(BasePermission):

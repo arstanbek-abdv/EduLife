@@ -1,5 +1,5 @@
 from apps.courses.models import Course,Module,Task
-from apps.courses.permissions.course_permissions import IsTeacher, IsTaskCourseTeacher
+from apps.courses.permissions.course_permissions import IsTeacher, IsTaskCourseTeacher, IsAdmin, IsTeacherOrAdmin
 from django.shortcuts import get_object_or_404
 from apps.courses.serializers.course_serializers import (
     ModuleSerializer,
@@ -36,11 +36,14 @@ class CreateEditCourse(ModelViewSet):
     Курс может содержать несколько модулей, модуль — несколько заданий.
     Каждое задание должно содержать прикреплённый файл.
     '''
-    permission_classes = [IsAuthenticated,IsTeacher]
+    permission_classes = [IsAuthenticated, IsTeacherOrAdmin]
     serializer_class = TeacherCourseSerializer
     
     def get_queryset(self):
-        return Course.objects.filter(teacher=self.request.user)
+        user = self.request.user
+        if user.role == CustomUser.Role.ADMIN:
+            return Course.objects.all()
+        return Course.objects.filter(teacher=user)
     
     def perform_create(self, serializer):
         return serializer.save(teacher=self.request.user)
@@ -56,14 +59,16 @@ class CreateEditModule(ModelViewSet):
     Модуль не может существовать отдельно от курса.
     Каждый модуль должен ссылаться на курс.
     '''
-    permission_classes = [IsAuthenticated,IsTeacher]
+    permission_classes = [IsAuthenticated, IsTeacherOrAdmin]
     serializer_class = ModuleSerializer
     http_method_names = ['post','patch','delete']
     
     def get_queryset(self):
         course_id = self.kwargs['course_id']
-        modules = Module.objects.filter(course=course_id,
-        course__teacher=self.request.user)
+        user = self.request.user
+        modules = Module.objects.filter(course=course_id)
+        if user.role != CustomUser.Role.ADMIN:
+            modules = modules.filter(course__teacher=user)
         return modules
         
     def perform_create(self, serializer):
@@ -92,14 +97,16 @@ class CreateEditTask(ModelViewSet):
     Так же, как модуль не может существовать без курса,
     задание не может существовать без модуля — каждое задание должно ссылаться на модуль.
     '''
-    permission_classes = [IsAuthenticated,IsTeacher]
+    permission_classes = [IsAuthenticated, IsTeacherOrAdmin]
     serializer_class = TaskSerializer
     http_method_names = ['post','patch','delete']
 
     def get_queryset(self):
         module_id = self.kwargs['module_id']
-        tasks = Task.objects.filter(module=module_id,
-        module__course__teacher=self.request.user)
+        user = self.request.user
+        tasks = Task.objects.filter(module=module_id)
+        if user.role != CustomUser.Role.ADMIN:
+            tasks = tasks.filter(module__course__teacher=user)
         return tasks 
 
     def perform_create(self, serializer):
@@ -119,10 +126,14 @@ class CourseCoverUpload(APIView):
     Если курс не найден или endpoint вызван посторонним, возвращается ошибка 404.
     Возвращает URL для просмотра изображения.
     '''
-    permission_classes = [IsAuthenticated, IsTeacher]
+    permission_classes = [IsAuthenticated, IsTeacherOrAdmin]
 
     def course_teacher(self, request, course_id):
-        course = get_object_or_404(Course, id=course_id, teacher=request.user)
+        user = request.user
+        if user.role == CustomUser.Role.ADMIN:
+            course = get_object_or_404(Course, id=course_id)
+        else:
+            course = get_object_or_404(Course, id=course_id, teacher=user)
         self.check_object_permissions(request, course)
         return course
 
@@ -164,16 +175,18 @@ class CourseCoverUpload(APIView):
 class TaskFileUpload(APIView):
     '''
     Only the course teacher can upload a file for a task.
-    Uses IsTaskCourseTeacher so access is by ownership (task's course teacher), not only by role.
+    Admins can upload files for any task.
     '''
-    permission_classes = [IsAuthenticated, IsTaskCourseTeacher]
+    permission_classes = [IsAuthenticated, IsTeacherOrAdmin]
 
     def owned_task(self, request, task_id):
+        user = request.user
         task = get_object_or_404(
             Task.objects.select_related('module__course'),
             id=task_id,
-            module__course__teacher=request.user,
         )
+        if user.role != CustomUser.Role.ADMIN and task.module.course.teacher_id != user.id:
+            raise PermissionDenied('You do not have permission to upload files for this task.')
         self.check_object_permissions(request, task)
         return task
 
@@ -224,10 +237,14 @@ class PublishCourse(APIView):
     Пример: cover: Курс не может быть опубликован без обложки!
     Если курс не найден, возвращается ошибка 404.
     '''
-    permission_classes = [IsAuthenticated, IsTeacher]
+    permission_classes = [IsAuthenticated, IsTeacherOrAdmin]
 
     def get_course_and_validate(self, request, course_id):
-        course = get_object_or_404(Course, id=course_id, teacher=request.user)
+        user = request.user
+        if user.role == CustomUser.Role.ADMIN:
+            course = get_object_or_404(Course, id=course_id)
+        else:
+            course = get_object_or_404(Course, id=course_id, teacher=user)
         self.check_object_permissions(request, course)
         cant_publish = {}
         if course.file_key is None:
@@ -249,7 +266,11 @@ class PublishCourse(APIView):
             return course
         
     def patch(self, request, course_id, *args, **kwargs):
-        course = get_object_or_404(Course, id=course_id, teacher=request.user)
+        user = request.user
+        if user.role == CustomUser.Role.ADMIN:
+            course = get_object_or_404(Course, id=course_id)
+        else:
+            course = get_object_or_404(Course, id=course_id, teacher=user)
         if course.status == Course.CourseStatus.PUBLISHED:
             return Response(
                 {"detail": "Course is already published.", "status": course.status, "published_at": course.published_at},
