@@ -1,4 +1,5 @@
 from apps.courses.models import Course,Module,Task
+from apps.users.models import CustomUser
 from apps.courses.permissions.course_permissions import IsTeacher, IsTaskCourseTeacher, IsAdmin, IsTeacherOrAdmin
 from django.shortcuts import get_object_or_404
 from apps.courses.serializers.course_serializers import (

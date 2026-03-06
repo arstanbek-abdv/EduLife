@@ -3,7 +3,7 @@ from rest_framework.permissions import IsAuthenticatedOrReadOnly
 
 from apps.courses.models import Module, Task
 from apps.courses.serializers.course_serializers import ModuleSerializer, TaskSerializer
-from apps.courses.permissions.course_permissions import IsEnrolled
+from apps.courses.permissions.course_permissions import IsEnrolled, IsAdmin
 
 class ModuleViewSet(viewsets.ReadOnlyModelViewSet):
     """
@@ -16,7 +16,7 @@ class ModuleViewSet(viewsets.ReadOnlyModelViewSet):
     - ?course_id=X — фильтр модулей по курсу
     """
     serializer_class = ModuleSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [IsAuthenticatedOrReadOnly,IsAdmin]
 
     def get_queryset(self):
         queryset = Module.objects.select_related('course').all()
@@ -40,7 +40,7 @@ class TaskViewSet(viewsets.ReadOnlyModelViewSet):
     - ?course_id=X — фильтр заданий по курсу (через модуль)
     """
     serializer_class = TaskSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly,IsEnrolled]
+    permission_classes = [IsAuthenticatedOrReadOnly,IsEnrolled,IsAdmin]
 
     def get_queryset(self):
         queryset = Task.objects.select_related('module__course').all()

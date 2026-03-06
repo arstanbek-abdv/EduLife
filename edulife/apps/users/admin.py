@@ -35,7 +35,8 @@ class CustomUserAdmin(UserAdmin):
             'fields': (
                 'bio',
                 'profile_image',
-            )
+            ),
+            'description': 'Upload profile picture in the Profile Image field below'
         }),
         ('MinIO файл (аватар)', {
             'fields': (
@@ -43,7 +44,9 @@ class CustomUserAdmin(UserAdmin):
                 'original_file_name',
                 'file_mime_type',
                 'file_size',
-            )
+            ),
+            'classes': ('collapse',),
+            'description': 'These fields are automatically populated when uploading via API'
         }),
         ('Сброс пароля', {
             'fields': (
@@ -78,6 +81,10 @@ class CustomUserAdmin(UserAdmin):
         'last_login',
         'date_joined',
         'password_reset_token_created',
+        'file_key',
+        'original_file_name',
+        'file_mime_type',
+        'file_size',
     )
 
     # При добавлении нового пользователя показываем только самое нужное

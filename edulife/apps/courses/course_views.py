@@ -52,7 +52,10 @@ class HomeAPIView(APIView):
         user = request.user
         
         if user.role == CustomUser.Role.TEACHER or user.role == CustomUser.Role.ADMIN:
-            queryset = Course.objects.filter(teacher=user)
+            if user.role == CustomUser.Role.ADMIN:
+                queryset = Course.objects.all()
+            else:
+                queryset = Course.objects.filter(teacher=user)
             category = request.query_params.get('category')
             title = request.query_params.get('title')
             
