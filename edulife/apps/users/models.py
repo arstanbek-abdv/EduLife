@@ -47,7 +47,7 @@ class CustomUser(AbstractUser):
         blank=True,
         null=True,
     )
-    file_key = models.CharField(max_length=512, blank=True, null=True) # permanent MinIO path
+    file_key = models.CharField(max_length=512, blank=True, null=True)  # permanent object storage path
     file_mime_type = models.CharField(max_length=100, blank=True, null=True)
     file_size = models.BigIntegerField(null=True, blank=True) # size in bytes 
     original_file_name = models.CharField(max_length=255, blank=True, null=True)

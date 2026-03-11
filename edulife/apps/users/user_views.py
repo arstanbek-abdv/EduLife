@@ -109,7 +109,8 @@ class UploadUserProfile(APIView):
         user.file_key = file_key
         user.file_mime_type = uploaded.content_type or 'image/jpeg'
         user.original_file_name = uploaded.name[:255]
-        user.save(update_fields=['file_key', 'file_mime_type', 'original_file_name'])
+        user.file_size = uploaded.size
+        user.save(update_fields=['file_key', 'file_mime_type', 'original_file_name', 'file_size'])
 
         return Response({
             "file_url": file_url,

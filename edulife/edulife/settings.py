@@ -151,7 +151,8 @@ SIMPLE_JWT = {
 
 STORAGES = {
     "default": {
-        "BACKEND": "edulife.storage.MinioStorage",
+        # Cloud object storage (Cloudflare R2 / any S3‑compatible)
+        "BACKEND": "edulife.storage.R2Storage",
     },
     "staticfiles": {
         "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
@@ -161,15 +162,27 @@ STORAGES = {
 DATA_UPLOAD_MAX_MEMORY_SIZE = 629145600
 FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800
 
-MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "localhost:9000")
-MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY")
-MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY")
-MINIO_USE_SSL = os.getenv("MINIO_USE_SSL", "false").lower() == "true"
-MINIO_BUCKET_NAME = os.getenv("MINIO_BUCKET_NAME", "edulife")
-MINIO_REGION_NAME = os.getenv("MINIO_REGION_NAME", "us-east-1")
-MINIO_ENDPOINT_URL = os.getenv(
-    "MINIO_ENDPOINT_URL",
-    f"http{'s' if MINIO_USE_SSL else ''}://{MINIO_ENDPOINT}",
+#
+# Object storage configuration (Cloudflare R2 / S3‑compatible)
+#
+# For backward compatibility we still read MINIO_* if R2_* are not provided.
+R2_ACCOUNT_ID=os.getenv('R2_ACCOUNT_ID')
+R2_ENDPOINT = os.getenv("R2_ENDPOINT") 
+R2_ACCESS_KEY = os.getenv("R2_ACCESS_KEY") 
+R2_SECRET_KEY = os.getenv("R2_SECRET_KEY") 
+R2_USE_SSL = (
+    os.getenv("R2_USE_SSL")
+    or os.getenv("MINIO_USE_SSL", "false")
+).lower() in ("1", "true", "yes")
+R2_BUCKET_NAME = os.getenv("R2_BUCKET_NAME")
+R2_REGION_NAME = os.getenv("R2_REGION_NAME") 
+R2_ENDPOINT_URL = os.getenv(
+    "R2_ENDPOINT_URL"
+    # Example for Cloudflare R2 S3 API:
+    #   https://<account-id>.r2.cloudflarestorage.com
+    # or custom S3‑compatible endpoint.
+    or os.getenv("MINIO_ENDPOINT_URL")
+    or f"http{'s' if R2_USE_SSL else ''}://{R2_ENDPOINT}",
 )
 
 
@@ -232,6 +245,6 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'abdyldaevarstanbek79@gmail.com'
-EMAIL_HOST_PASSWORD = 'nnau ypfd ilvk hoxi'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 PASSWORD_RESET_TOKEN_EXPIRY_SECONDS = 1800

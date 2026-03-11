@@ -1,14 +1,22 @@
 from django.conf import settings
 from storages.backends.s3boto3 import S3Boto3Storage
 
-class MinioStorage(S3Boto3Storage):
-    bucket_name = settings.MINIO_BUCKET_NAME
-    endpoint_url = settings.MINIO_ENDPOINT_URL
-    access_key = settings.MINIO_ACCESS_KEY
-    secret_key = settings.MINIO_SECRET_KEY
-    region_name = settings.MINIO_REGION_NAME
+
+class R2Storage(S3Boto3Storage):
+    """
+    Cloudflare R2 (or any S3‑compatible) storage backend.
+
+    Configuration is taken from R2_* settings with a fallback to legacy MINIO_* env vars.
+    """
+
+    bucket_name = settings.R2_BUCKET_NAME
+    endpoint_url = settings.R2_ENDPOINT_URL
+    access_key = settings.R2_ACCESS_KEY
+    secret_key = settings.R2_SECRET_KEY
+    region_name = settings.R2_REGION_NAME
+
     default_acl = None
     file_overwrite = False
     querystring_auth = True
-    # Signed URL lifetime in seconds (1 hour). Bucket must be created manually or via deploy script.
+    # Signed URL lifetime in seconds (1 hour).
     querystring_expire = 3600
